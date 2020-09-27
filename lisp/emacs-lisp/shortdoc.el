@@ -187,6 +187,7 @@ There can be any number of :example/:result elements."
    :example (file-name-nondirectory "/tmp/foo")
    :example (file-name-nondirectory "/tmp/foo/"))
   (file-name-sans-versions
+   :args (filename)
    :example (file-name-sans-versions "/tmp/foo~"))
   (file-name-extension
    :example (file-name-extension "/tmp/foo.txt"))
@@ -208,12 +209,13 @@ There can be any number of :example/:result elements."
   (directory-file-name
    :example (directory-file-name "/tmp/foo/"))
   (abbreviate-file-name
-   :example-no-result (abbreviate-file-name "/home/some-user")
-   :result "~some-user")
+   :example-no-result (abbreviate-file-name "/home/some-user"))
   "Quoted File Names"
   (file-name-quote
+   :args (name)
    :example (file-name-quote "/tmp/foo"))
   (file-name-unquote
+   :args (name)
    :example (file-name-unquote "/:/tmp/foo"))
   "Predicates"
   (file-name-absolute-p
