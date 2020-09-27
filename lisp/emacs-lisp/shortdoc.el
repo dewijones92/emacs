@@ -532,11 +532,14 @@ There can be any number of :example/:result elements."
     (button-mode)
     (mapc
      (lambda (data)
-       (if (stringp data)
-           (insert (propertize
-                    (concat data "\n\n")
-                    'face '(variable-pitch (:height 1.3 :weight bold))))
-         (shortdoc--display-function data)))
+       (cond
+        ((stringp data)
+         (insert (propertize
+                  (concat data "\n\n")
+                  'face '(variable-pitch (:height 1.3 :weight bold)))))
+        ;; There may be functions not yet defined in the data.
+        ((fboundp (car data))
+         (shortdoc--display-function data))))
      (cdr (assq group shortdoc--groups))))
   (goto-char (point-min)))
 
