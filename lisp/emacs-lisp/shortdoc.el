@@ -230,139 +230,158 @@ There can be any number of :example/:result elements."
   "Inserting Contents"
   (insert-file-contents
    :example-no-eval (insert-file-contents "/tmp/foo")
-   :result ("/tmp/foo" 6))
+   :eg-result ("/tmp/foo" 6))
   (insert-file-contents-literally
    :example-no-eval (insert-file-contents-literally "/tmp/foo")
-   :result ("/tmp/foo" 6))
+   :eg-result ("/tmp/foo" 6))
   (find-file
    :example-no-eval (find-file "/tmp/foo")
-   :result-string "#<buffer foo>")
+   :eg-result-string "#<buffer foo>")
   "Predicates"
   (file-symlink-p
    :example-no-eval (file-symlink-p "/tmp/foo")
-   :result t)
+   :eg-result t)
   (file-directory-p
    :example-no-eval (file-directory-p "/tmp")
-   :result t)
+   :eg-result t)
   (file-regular-p
    :example-no-eval (file-regular-p "/tmp/foo")
-   :result t)
+   :eg-result t)
   (file-exists-p
    :example-no-eval (file-exists-p "/tmp/foo")
-   :result t)
+   :eg-result t)
   (file-readable-p
    :example-no-eval (file-readable-p "/tmp/foo")
-   :result t)
+   :eg-result t)
   (file-writeable-p
    :example-no-eval (file-writeable-p "/tmp/foo")
-   :result t)
+   :eg-result t)
   (file-accessible-directory-p
    :example-no-eval (file-accessible-directory-p "/tmp")
-   :result t)
+   :eg-result t)
   (file-executable-p
    :example-no-eval (file-executable-p "/bin/cat")
-   :result t)
+   :eg-result t)
   (file-newer-than-file-p
    :example-no-eval (file-newer-than-file-p "/tmp/foo" "/tmp/bar")
-   :result nil)
+   :eg-result nil)
   (file-equal-p
    :example-no-eval (file-equal-p "/tmp/foo" "/tmp/bar")
-   :result nil)
+   :eg-result nil)
   (file-in-directory-p
    :example-no-eval (file-in-directory-p "/tmp/foo" "/tmp/")
-   :result t)
+   :eg-result t)
   (file-locked-p
    :example-no-eval (file-locked-p "/tmp/foo")
-   :result nil)
+   :eg-result nil)
   "Information"
   (file-attributes
-   :example-no-result (file-attributes "/tmp"))
+   :example-no-eval (file-attributes "/tmp"))
   (file-truename
    :example-no-eval (file-truename "/tmp/foo/bar")
    :result "/tmp/foo/zot")
   (file-chase-links
    :example-no-eval (file-chase-links "/tmp/foo/bar")
-   :result "/tmp/foo/zot")
+   :eg-result "/tmp/foo/zot")
   (vc-responsible-backend
    :example-no-eval (vc-responsible-backend "/src/foo/bar.c")
-   :result Git)
+   :eg-result Git)
   (file-acl
    :example-no-eval (file-acl "/tmp/foo")
-   :result "user::rw-\ngroup::r--\nother::r--\n")
+   :eg-result "user::rw-\ngroup::r--\nother::r--\n")
   (file-extended-attributes
    :example-no-result (file-extended-attributes "/tmp/foo"))
   (file-selinux-context
    :example-no-result (file-selinux-context "/tmp/foo"))
   (locate-file
    :example-no-eval (locate-file "syslog" '("/var/log" "/usr/bin"))
-   :result "/var/log/syslog")
+   :eg-result "/var/log/syslog")
   (executable-find
    :example-no-eval (executable-find "ls")
-   :result "/usr/bin/ls")
+   :eg-result "/usr/bin/ls")
   "Creating"
   (make-temp-file
    :example-no-eval (make-temp-file "/tmp/foo-")
-   :result "/tmp/foo-ZcXFMj")
+   :eg-result "/tmp/foo-ZcXFMj")
   (make-nearby-temp-file
    :example-no-eval (make-nearby-temp-file "/tmp/foo-")
-   :result "/tmp/foo-xe8iON")
+   :eg-result "/tmp/foo-xe8iON")
   (write-region
-   :example-no-result (write-region (point-min) (point-max) "/tmp/foo"))
+   :example-no-eval (write-region (point-min) (point-max) "/tmp/foo")
+   :eg-result-string "<no result>")
   "Directories"
   (make-directory
-   :example-no-result (make-directory "/tmp/bar/zot/" t))
+   :example-no-eval (make-directory "/tmp/bar/zot/" t)
+   :eg-result-string "<no result>")
   (directory-files
    :example-no-eval (directory-files "/tmp/")
-   :result ("." ".." ".ICE-unix" ".Test-unix"))
+   :eg-result ("." ".." ".ICE-unix" ".Test-unix"))
   (directory-files-recursively
    :example-no-eval (directory-files-recursively "/tmp/" "\\.png\\'")
-   :result ("/tmp/foo.png" "/tmp/zot.png" "/tmp/bar/foobar.png"))
+   :eg-result ("/tmp/foo.png" "/tmp/zot.png" "/tmp/bar/foobar.png"))
   (directory-files-and-attributes
    :example-no-result (directory-files-and-attributes "/tmp/foo"))
   (file-expand-wildcards
    :example-no-eval (file-expand-wildcards "/tmp/*.png")
-   :result ("/tmp/foo.png" "/tmp/zot.png"))
+   :eg-result ("/tmp/foo.png" "/tmp/zot.png"))
   (locate-dominating-file
    :example-no-eval (locate-dominating-file "foo.png" "/tmp/foo/bar/zot")
-   :result "/tmp/foo.png")
+   :eg-result "/tmp/foo.png")
   (copy-directory
-   :example-no-result (copy-directory "/tmp/bar/" "/tmp/barcopy"))
+   :example-no-eval (copy-directory "/tmp/bar/" "/tmp/barcopy")
+   :eg-result-string "<no result>")
   (delete-directory
-   :example-no-result (delete-directory "/tmp/bar/"))
+   :example-no-eval (delete-directory "/tmp/bar/")
+   :eg-result-string "<no result>")
   "File Operations"
   (rename-file
-   :example-no-result (rename-file "/tmp/foo" "/tmp/newname"))
+   :example-no-eval (rename-file "/tmp/foo" "/tmp/newname")
+   :eg-result-string "<no result>")
   (copy-file
-   :example-no-result (copy-file "/tmp/foo" "/tmp/foocopy"))
+   :example-no-eval (copy-file "/tmp/foo" "/tmp/foocopy")
+   :eg-result-string "<no result>")
   (delete-file
-   :example-no-result (delete-file "/tmp/foo"))
+   :example-no-eval (delete-file "/tmp/foo")
+   :eg-result-string "<no result>")
   (make-empty-file
-   :example-no-result (make-empty-file "/tmp/foo"))
+   :example-no-eval (make-empty-file "/tmp/foo")
+   :eg-result-string "<no result>")
   (make-symbolic-link
-   :example-no-result (make-symbolic-link "/tmp/foo" "/tmp/foosymlink"))
+   :example-no-eval (make-symbolic-link "/tmp/foo" "/tmp/foosymlink")
+   :eg-result-string "<no result>")
   (add-name-to-file
-   :example-no-result (add-name-to-file "/tmp/foo" "/tmp/bar"))
+   :example-no-eval (add-name-to-file "/tmp/foo" "/tmp/bar")
+   :eg-result-string "<no result>")
   (set-file-modes
-   :example-no-result (set-file-modes "/tmp/foo" #o644))
+   :example-no-eval "(set-file-modes \"/tmp/foo\" #o644)"
+   :eg-result-string "<no result>")
   (set-file-times
-   :example-no-result (set-file-times "/tmp/foo" (current-time)))
+   :example-no-eval (set-file-times "/tmp/foo" (current-time))
+   :eg-result-string "<no result>")
   "File Modes"
   (set-default-file-modes
-   :example-no-result (set-default-file-modes #o755))
+   :example-no-eval "(set-default-file-modes #o755)"
+   :eg-result-string "<no result>")
   (default-file-modes
-   :example-no-result (default-file-modes))
+   :example-no-eval (default-file-modes)
+   :eg-result-string "#o755")
   (file-modes-symbolic-to-number
-   :example (file-modes-symbolic-to-number "a+r"))
+   :example-no-eval (file-modes-symbolic-to-number "a+r")
+   :eg-result-string "#o444")
   (file-modes-number-to-symbolic
-   :example (file-modes-number-to-symbolic #o444))
+   :example "(file-modes-number-to-symbolic #o444)"
+   :result "-r--r--r--")
   (set-file-extended-attributes
-   :example-no-result (set-file-extended-attributes
-                       "/tmp/foo" '((acl . "group::rxx"))))
+   :example-no-eval (set-file-extended-attributes
+                     "/tmp/foo" '((acl . "group::rxx")))
+   :eg-result t)
   (set-file-selinux-context
-   :example-no-result (set-file-selinux-context
-                       "/tmp/foo" '(unconfined_u object_r user_home_t s0)))
+   :example-no-eval (set-file-selinux-context
+                     "/tmp/foo" '(unconfined_u object_r user_home_t s0))
+   :eg-result t)
   (set-file-acl
-   :example-no-result (set-file-acl "/tmp/foo" "group::rxx")))
+   :example-no-eval (set-file-acl "/tmp/foo" "group::rxx")
+   :eg-result t))
 
 
 (define-short-documentation-group list
@@ -677,22 +696,30 @@ There can be any number of :example/:result elements."
                     (prin1 (eval value) (current-buffer))
                     (insert "\n")))
                 (:example-no-result
-                 (insert "  ")
-                 (prin1 value (current-buffer))
+                 (if (stringp value)
+                     (insert "  " value "\n")
+                   (insert "  ")
+                   (prin1 value (current-buffer)))
                  (insert "\n    -> "
                          (propertize "[it depends]"
                                      'face 'variable-pitch)
                          "\n"))
                 (:example-no-eval
-                 (insert "  ")
-                 (prin1 value (current-buffer))
+                 (if (stringp value)
+                     (insert "  " value)
+                   (insert "  ")
+                   (prin1 value (current-buffer)))
                  (insert "\n"))
                 (:result
                  (insert "    => ")
                  (prin1 value (current-buffer))
                  (insert "\n"))
-                (:result-string
-                 (insert "    -> ")
+                (:eg-result
+                 (insert "    eg. => ")
+                 (prin1 value (current-buffer))
+                 (insert "\n"))
+                (:eg-result-string
+                 (insert "    eg. => ")
                  (princ value (current-buffer))
                  (insert "\n"))))
       (put-text-property start (point) 'face 'shortdoc-example))
