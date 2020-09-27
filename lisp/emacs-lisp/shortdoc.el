@@ -104,6 +104,8 @@ There can be any number of :example/:result elements."
    :example (split-string "foo bar")
    :example (split-string "|foo|bar|" "|")
    :example (split-string "|foo|bar|" "|" t))
+  (string-replace
+   :example (string-replace "foo" "bar" "foozot"))
   (replace-regexp-in-string
    :example (replace-regexp-in-string "[a-z]+" "_" "*foo*"))
   (string-trim
@@ -170,9 +172,106 @@ There can be any number of :example/:result elements."
   "Data About Strings"
   (length
    :example (length "foo"))
+  (string-search
+   :example (string-search "bar" "foobarzot"))
   (seq-position
    :example "(seq-position \"foobarzot\" ?z)"
    :result 6))
+
+(define-short-documentation-group file-name
+  "File Name Manipulation"
+  (file-name-directory
+   :example (file-name-directory "/tmp/foo")
+   :example (file-name-directory "/tmp/foo/"))
+  (file-name-nondirectory
+   :example (file-name-nondirectory "/tmp/foo")
+   :example (file-name-nondirectory "/tmp/foo/"))
+  (file-name-sans-versions
+   :example (file-name-sans-versions "/tmp/foo~"))
+  (file-name-extension
+   :example (file-name-extension "/tmp/foo.txt"))
+  (file-name-sans-extension
+   :example (file-name-sans-extension "/tmp/foo.txt"))
+  (file-name-base
+   :example (file-name-base "/tmp/foo.txt"))
+  (file-relative-name
+   :example (file-relative-name "/tmp/foo" "/tmp"))
+  (make-temp-name
+   :example (make-temp-name "/tmp/foo-"))
+  (expand-file-name
+   :example (expand-file-name "foo" "/tmp/"))
+  (substitute-in-file-name
+   :example (substitute-in-file-name "$HOME/foo"))
+  "Directory Functions"
+  (file-name-as-directory
+   :example (file-name-as-directory "/tmp/foo"))
+  (directory-file-name
+   :example (directory-file-name "/tmp/foo/"))
+  (abbreviate-file-name
+   :example-no-result (abbreviate-file-name "/home/some-user")
+   :result "~some-user")
+  "Quoted File Names"
+  (file-name-quote
+   :example (file-name-quote "/tmp/foo"))
+  (file-name-unquote
+   :example (file-name-unquote "/:/tmp/foo"))
+  "Predicates"
+  (file-name-absolute-p
+   :example (file-name-absolute-p "/tmp/foo")
+   :example (file-name-absolute-p "foo"))
+  (directory-name-p
+   :example (directory-name-p "/tmp/foo/"))
+  (file-name-quoted-p
+   :example (file-name-quoted-p "/:/tmp/foo")))
+
+(define-short-documentation-group file
+  "Predicates"
+  (file-symlink-p
+   :example-no-result (file-symlink-p "/tmp/foo"))
+  (file-directory-p
+   :example-no-result (file-directory-p "/tmp"))
+  (file-regular-p
+   :example-no-result (file-regular-p "/tmp/foo"))
+  (file-exists-p
+   :example-no-result (file-exists-p "/tmp/foo"))
+  (file-readable-p
+   :example-no-result (file-readable-p "/tmp/foo"))
+  (file-writeable-p
+   :example-no-result (file-writeable-p "/tmp/foo"))
+  (file-accessible-directory-p
+   :example-no-result (file-accessible-directory-p "/tmp"))
+  (file-executable-p
+   :example-no-result (file-exacutable-p "/bin/cat"))
+  (file-newer-than-file-p
+   :example-no-result (file-newer-than-file-p "/tmp/foo" "/tmp/bar"))
+  (file-equal-p
+   :example-no-result (file-equal-p "/tmp/foo" "/tmp/bar"))
+  (file-in-directory-p
+   :example-no-result (file-in-directory-p "foo" "/tmp"))
+  "Information"
+  (file-attributes
+   :example-no-result (file-attributes "/tmp"))
+  (file-truename
+   :example-no-result (file-truename "/tmp/foo/bar"))
+  (file-chase-links
+   :example-no-result (file-chase-links "/tmp/foo/bar"))
+  (vc-responsible-backend
+   :example-no-result (vc-responsible-backend "/src/foo/bar.c"))
+  (file-acl
+   :example-no-result (file-acl "/tmp/foo"))
+  (file-extended-attributes
+   :example-no-result (file-extended-attributes "/tmp/foo"))
+  (file-selinux-context
+   :example-no-result (file-selinux-context "/tmp/foo"))
+  (locate-file
+   :example-no-result (locate-file "zot" '("/var" "/usr")))
+  (executable-find
+   :example-no-result (executable-find "ls"))
+  "Creating"
+  (make-temp-file
+   :example-no-result (make-temp-file "/tmp/foo-"))
+  (make-nearby-temp-file
+   :example-no-result (make-temp-file "/tmp/foo-")))
 
 (define-short-documentation-group list
   "Making Lists"
