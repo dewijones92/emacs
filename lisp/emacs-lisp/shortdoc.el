@@ -704,6 +704,28 @@ There can be any number of :example/:result elements."
            when (assq function (cdr group))
            collect (car group)))
 
+(defun shortdoc-add-function (group section elem)
+  "Add ELEM to shortdoc GROUP in SECTION.
+If SECTION doesn't exist, it will be added.
+
+Example:
+
+  (shortdoc-add-function
+    'file \"Predicates\"
+    '(file-locked-p :example-no-eval (file-locked-p \"/tmp\")))"
+  (let ((glist (assq group shortdoc--groups)))
+    (unless glist
+      (setq glist (list group))
+      (setq shortdoc--groups (append shortdoc--groups (list glist))))
+    (let ((slist (member section glist)))
+      (unless slist
+        (setq slist (list section))
+        (append glist slist))
+      (while (and (cdr slist)
+                  (not (stringp (cadr slist))))
+        (setq slist (cdr slist)))
+      (setcdr slist (cons elem (cdr slist))))))
+
 (provide 'shortdoc)
 
 ;;; shortdoc.el ends here
