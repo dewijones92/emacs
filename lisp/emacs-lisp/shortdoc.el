@@ -380,17 +380,58 @@ There can be any number of :example/:result elements."
    :eval (cons 1 '(2 3 4)))
   (list
    :eval (list 1 2 3))
+  (number-sequence
+   :eval (number-sequence 5 8))
   "Operations on Lists"
   (append
    :eval (append '("foo" "bar") '("zot")))
+  (copy-tree
+   :eval (copy-tree '(1 (2 3) 4)))
   (flatten-tree
    :eval (flatten-tree '(1 (2 3) 4)))
   (car
    :eval (car '(one two three)))
   (cdr
    :eval (cdr '(one two three)))
+  (last
+   :eval (last '(one two three)))
+  (butlast
+   :eval (butlast '(one two three)))
+  (nbutlast
+   :eval (nbutlast (list 'one 'two 'three)))
+  (nth
+   :eval (nth 1 '(one two three)))
+  (nthcdr
+   :eval (nthcdr 1 '(one two three)))
+  (elt
+   :eval (elt '(one two three) 1))
+  (car-safe
+   :eval (car-safe '(one two three)))
+  (cdr-safe
+   :eval (cdr-safe '(one two three)))
   (push
    :no-eval* (push 'a list))
+  (pop
+   :no-eval* (pop list))
+  (setcar
+   :no-eval (setcar list 'c)
+   :result c)
+  (setcdr
+   :no-eval (setcdr list (list c))
+   :result '(c))
+  (nconc
+   :eval (nconc (list 1) (list 2 3 4)))
+  (delq
+   :eval (delq 2 (list 1 2 3 4))
+   :eval (delq "a" (list "a" "b" "c" "d")))
+  (delete
+   :eval (delete 2 (list 1 2 3 4))
+   :eval (delete "a" (list "a" "b" "c" "d")))
+  (remove
+   :eval (remove 2 '(1 2 3 4))
+   :eval (remove "a" '("a" "b" "c" "d")))
+  (delete-dups
+   :eval (delete-dups (list 1 2 4 3 2 4)))
   "Mapping Over Lists"
   (mapcar
    :eval (mapcar #'1+ '(1 2 3)))
@@ -411,7 +452,69 @@ There can be any number of :example/:result elements."
    :eval (proper-list-p nil)
    :eval (proper-list-p '(1 . 2)))
   (null
-   :eval (null nil)))
+   :eval (null nil))
+  (atom
+   :eval (atom 'a))
+  (nlistp
+   :eval (nlistp '(1 2 3))
+   :eval (nlistp t)
+   :eval (nlistp '(1 . 2)))
+  "Finding Elements"
+  (memq
+   :eval (memq 2 '(1 2 3))
+   :eval (memq 2.0 '(1.0 2.0 3.0))
+   :eval (memq "b" '("a" "b" "c")))
+  (member
+   :eval (member 2 '(1 2 3))
+   :eval (member "b" '("a" "b" "c")))
+  (remq
+   :eval (remq 2 '(1 2 3 2 4 2))
+   :eval (remq "b" '("a" "b" "c")))
+  (memql
+   :eval (memql 2.0 '(1.0 2.0 3.0)))
+  (member-ignore-case
+   :eval (member-ignore-case "foo" '("bar" "Foo" "zot")))
+  "Association Lists"
+  (assoc
+   :eval (assoc 'b '((a 1) (b 2))))
+  (rassoc
+   :eval (rassoc '2 '((a . 1) (b . 2))))
+  (assq
+   :eval (assq 'b '((a 1) (b 2)))
+   :eval (assq "a" '(("a" 1) ("b" 2))))
+  (rassq
+   :eval (rassq '2 '((a . 1) (b . 2))))
+  (assoc-string
+   :eval (assoc-string "foo" '(("a" 1) (foo 2))))
+  (alist-get
+   :eval (alist-get 2 '((1 . a) (2 . b))))
+  (assoc-default
+   :eval (assoc-default 2 '((1 . a) (2 . b) #'=)))
+  (copy-alist
+   :eval (copy-alist '((1 . a) (2 . b))))
+  (assq-delete-all
+   :eval (assq-delete-all 2 (list '(1 . a) '(2 . b) '(2 . c))))
+  (assoc-delete-all
+   :eval (assoc-delete-all "b" (list '("a" . a) '("b" . b) '("b" . c))))
+  "Property Lists"
+  (plist-get
+   :eval (plist-get '(a 1 b 2 c 3) 'b))
+  (plist-put
+   :no-eval (setq plist (plist-put plist 'd 4))
+   :eq-result (a 1 b 2 c 3 d 4))
+  (lax-plist-get
+   :eval (lax-plist-get '("a" 1 "b" 2 "c" 3) "b"))
+  (lax-plist-put
+   :no-eval (setq plist (plist-put plist "d" 4))
+   :eq-result '("a" 1 "b" 2 "c" 3 "d" 4))
+  (plist-member
+   :eval (plist-member '(a 1 b 2 c 3) 'b))
+  "Data About Lists"
+  (length
+   :eval (length '(a b c)))
+  (safe-length
+   :eval (safe-length '(a b c))))
+
 
 (define-short-documentation-group vector
   (make-vector
