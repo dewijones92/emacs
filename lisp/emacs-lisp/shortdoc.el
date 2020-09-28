@@ -81,561 +81,571 @@ There can be any number of :example/:result elements."
   "Making Strings"
   (make-string
    :args (length init)
-   :example "(make-string 5 ?x)"
+   :eval "(make-string 5 ?x)"
    :result "xxxxx")
   (string
-   :example "(string ?a ?b ?c)"
+   :eval "(string ?a ?b ?c)"
    :result "abc")
   (concat
-   :example (concat "foo" "bar" "zot"))
+   :eval (concat "foo" "bar" "zot"))
   (string-join
    :no-manual t
-   :example (string-join '("foo" "bar" "zot") " "))
+   :eval (string-join '("foo" "bar" "zot") " "))
   (mapconcat
-   :example (mapconcat (lambda (a) (concat "[" a "]"))
-                       '("foo" "bar" "zot") " "))
+   :eval (mapconcat (lambda (a) (concat "[" a "]"))
+                    '("foo" "bar" "zot") " "))
   (format
-   :example (format "This number is %d" 4))
+   :eval (format "This number is %d" 4))
   "Manipulating Strings"
   (substring
-   :example (substring "foobar" 0 3)
-   :example (substring "foobar" 3))
+   :eval (substring "foobar" 0 3)
+   :eval (substring "foobar" 3))
   (split-string
-   :example (split-string "foo bar")
-   :example (split-string "|foo|bar|" "|")
-   :example (split-string "|foo|bar|" "|" t))
+   :eval (split-string "foo bar")
+   :eval (split-string "|foo|bar|" "|")
+   :eval (split-string "|foo|bar|" "|" t))
   (string-replace
-   :example (string-replace "foo" "bar" "foozot"))
+   :eval (string-replace "foo" "bar" "foozot"))
   (replace-regexp-in-string
-   :example (replace-regexp-in-string "[a-z]+" "_" "*foo*"))
+   :eval (replace-regexp-in-string "[a-z]+" "_" "*foo*"))
   (string-trim
    :no-manual t
    :args (string)
    :doc "Trim STRING of leading and trailing white space."
-   :example (string-trim " foo "))
+   :eval (string-trim " foo "))
   (string-trim-left
    :no-manual t
-   :example (string-trim-left "oofoo" "o+"))
+   :eval (string-trim-left "oofoo" "o+"))
   (string-trim-right
    :no-manual t
-   :example (string-trim-right "barkss" "s+"))
+   :eval (string-trim-right "barkss" "s+"))
   (string-truncate-left
    :no-manual t
-   :example (string-truncate-left "longstring" 8))
+   :eval (string-truncate-left "longstring" 8))
   (string-remove-suffix
    :no-manual t
-   :example (string-remove-suffix "bar" "foobar"))
+   :eval (string-remove-suffix "bar" "foobar"))
   (string-remove-prefix
    :no-manual t
-   :example (string-remove-prefix "foo" "foobar"))
+   :eval (string-remove-prefix "foo" "foobar"))
   (reverse
-   :example (reverse "foo"))
+   :eval (reverse "foo"))
   (substring-no-properties
-   :example (substring-no-properties (propertize "foobar" 'face 'bold) 0 3))
+   :eval (substring-no-properties (propertize "foobar" 'face 'bold) 0 3))
   "Predicates for Strings"
   (string-equal
-   :example (string-equal "foo" "foo"))
+   :eval (string-equal "foo" "foo"))
   (stringp
-   :example "(stringp ?a)"
+   :eval "(stringp ?a)"
    :result t)
   (string-empty-p
    :no-manual t
-   :example (string-empty-p ""))
+   :eval (string-empty-p ""))
   (string-blank-p
    :no-manual t
-   :example (string-blank-p " \n"))
+   :eval (string-blank-p " \n"))
   (string-lessp
-   :example (string-lessp "foo" "bar"))
+   :eval (string-lessp "foo" "bar"))
   (string-greaterp
-   :example (string-greaterp "foo" "bar"))
+   :eval (string-greaterp "foo" "bar"))
   (string-version-lessp
-   :example (string-lessp "foo32.png" "bar4.png"))
+   :eval (string-lessp "foo32.png" "bar4.png"))
   (string-prefix-p
-   :example (string-prefix-p "foo" "foobar"))
+   :eval (string-prefix-p "foo" "foobar"))
   (string-suffix-p
-   :example (string-suffix-p "bar" "foobar"))
+   :eval (string-suffix-p "bar" "foobar"))
   "Case Manipulation"
   (upcase
-   :example (upcase "foo"))
+   :eval (upcase "foo"))
   (downcase
-   :example (downcase "FOObar"))
+   :eval (downcase "FOObar"))
   (capitalize
-   :example (capitalize "foo bar zot"))
+   :eval (capitalize "foo bar zot"))
   (upcase-initials
-   :example (upcase-initials "The CAT in the hAt"))
+   :eval (upcase-initials "The CAT in the hAt"))
   "Converting Strings"
   (string-to-number
-   :example (string-to-number "42")
-   :example (string-to-number "deadbeef" 16))
+   :eval (string-to-number "42")
+   :eval (string-to-number "deadbeef" 16))
   (number-to-string
-   :example (number-to-string 42))
+   :eval (number-to-string 42))
   "Data About Strings"
   (length
-   :example (length "foo"))
+   :eval (length "foo"))
   (string-search
-   :example (string-search "bar" "foobarzot"))
+   :eval (string-search "bar" "foobarzot"))
   (seq-position
-   :example "(seq-position \"foobarzot\" ?z)"
+   :eval "(seq-position \"foobarzot\" ?z)"
    :result 6))
 
 (define-short-documentation-group file-name
   "File Name Manipulation"
   (file-name-directory
-   :example (file-name-directory "/tmp/foo")
-   :example (file-name-directory "/tmp/foo/"))
+   :eval (file-name-directory "/tmp/foo")
+   :eval (file-name-directory "/tmp/foo/"))
   (file-name-nondirectory
-   :example (file-name-nondirectory "/tmp/foo")
-   :example (file-name-nondirectory "/tmp/foo/"))
+   :eval (file-name-nondirectory "/tmp/foo")
+   :eval (file-name-nondirectory "/tmp/foo/"))
   (file-name-sans-versions
    :args (filename)
-   :example (file-name-sans-versions "/tmp/foo~"))
+   :eval (file-name-sans-versions "/tmp/foo~"))
   (file-name-extension
-   :example (file-name-extension "/tmp/foo.txt"))
+   :eval (file-name-extension "/tmp/foo.txt"))
   (file-name-sans-extension
-   :example (file-name-sans-extension "/tmp/foo.txt"))
+   :eval (file-name-sans-extension "/tmp/foo.txt"))
   (file-name-base
-   :example (file-name-base "/tmp/foo.txt"))
+   :eval (file-name-base "/tmp/foo.txt"))
   (file-relative-name
-   :example (file-relative-name "/tmp/foo" "/tmp"))
+   :eval (file-relative-name "/tmp/foo" "/tmp"))
   (make-temp-name
-   :example (make-temp-name "/tmp/foo-"))
+   :eval (make-temp-name "/tmp/foo-"))
   (expand-file-name
-   :example (expand-file-name "foo" "/tmp/"))
+   :eval (expand-file-name "foo" "/tmp/"))
   (substitute-in-file-name
-   :example (substitute-in-file-name "$HOME/foo"))
+   :eval (substitute-in-file-name "$HOME/foo"))
   "Directory Functions"
   (file-name-as-directory
-   :example (file-name-as-directory "/tmp/foo"))
+   :eval (file-name-as-directory "/tmp/foo"))
   (directory-file-name
-   :example (directory-file-name "/tmp/foo/"))
+   :eval (directory-file-name "/tmp/foo/"))
   (abbreviate-file-name
-   :example-no-result (abbreviate-file-name "/home/some-user"))
+   :no-eval (abbreviate-file-name "/home/some-user")
+   :eg-result "~some-user")
   "Quoted File Names"
   (file-name-quote
    :args (name)
-   :example (file-name-quote "/tmp/foo"))
+   :eval (file-name-quote "/tmp/foo"))
   (file-name-unquote
    :args (name)
-   :example (file-name-unquote "/:/tmp/foo"))
+   :eval (file-name-unquote "/:/tmp/foo"))
   "Predicates"
   (file-name-absolute-p
-   :example (file-name-absolute-p "/tmp/foo")
-   :example (file-name-absolute-p "foo"))
+   :eval (file-name-absolute-p "/tmp/foo")
+   :eval (file-name-absolute-p "foo"))
   (directory-name-p
-   :example (directory-name-p "/tmp/foo/"))
+   :eval (directory-name-p "/tmp/foo/"))
   (file-name-quoted-p
-   :example (file-name-quoted-p "/:/tmp/foo")))
+   :eval (file-name-quoted-p "/:/tmp/foo")))
 
 (define-short-documentation-group file
   "Inserting Contents"
   (insert-file-contents
-   :example-no-eval (insert-file-contents "/tmp/foo")
+   :no-eval (insert-file-contents "/tmp/foo")
    :eg-result ("/tmp/foo" 6))
   (insert-file-contents-literally
-   :example-no-eval (insert-file-contents-literally "/tmp/foo")
+   :no-eval (insert-file-contents-literally "/tmp/foo")
    :eg-result ("/tmp/foo" 6))
   (find-file
-   :example-no-eval (find-file "/tmp/foo")
+   :no-eval (find-file "/tmp/foo")
    :eg-result-string "#<buffer foo>")
   "Predicates"
   (file-symlink-p
-   :example-no-eval (file-symlink-p "/tmp/foo")
+   :no-eval (file-symlink-p "/tmp/foo")
    :eg-result t)
   (file-directory-p
-   :example-no-eval (file-directory-p "/tmp")
+   :no-eval (file-directory-p "/tmp")
    :eg-result t)
   (file-regular-p
-   :example-no-eval (file-regular-p "/tmp/foo")
+   :no-eval (file-regular-p "/tmp/foo")
    :eg-result t)
   (file-exists-p
-   :example-no-eval (file-exists-p "/tmp/foo")
+   :no-eval (file-exists-p "/tmp/foo")
    :eg-result t)
   (file-readable-p
-   :example-no-eval (file-readable-p "/tmp/foo")
+   :no-eval (file-readable-p "/tmp/foo")
    :eg-result t)
   (file-writeable-p
-   :example-no-eval (file-writeable-p "/tmp/foo")
+   :no-eval (file-writeable-p "/tmp/foo")
    :eg-result t)
   (file-accessible-directory-p
-   :example-no-eval (file-accessible-directory-p "/tmp")
+   :no-eval (file-accessible-directory-p "/tmp")
    :eg-result t)
   (file-executable-p
-   :example-no-eval (file-executable-p "/bin/cat")
+   :no-eval (file-executable-p "/bin/cat")
    :eg-result t)
   (file-newer-than-file-p
-   :example-no-eval (file-newer-than-file-p "/tmp/foo" "/tmp/bar")
+   :no-eval (file-newer-than-file-p "/tmp/foo" "/tmp/bar")
    :eg-result nil)
   (file-equal-p
-   :example-no-eval (file-equal-p "/tmp/foo" "/tmp/bar")
+   :no-eval (file-equal-p "/tmp/foo" "/tmp/bar")
    :eg-result nil)
   (file-in-directory-p
-   :example-no-eval (file-in-directory-p "/tmp/foo" "/tmp/")
+   :no-eval (file-in-directory-p "/tmp/foo" "/tmp/")
    :eg-result t)
   (file-locked-p
-   :example-no-eval (file-locked-p "/tmp/foo")
+   :no-eval (file-locked-p "/tmp/foo")
    :eg-result nil)
   "Information"
   (file-attributes
-   :example-no-eval (file-attributes "/tmp"))
+   :no-eval* (file-attributes "/tmp"))
   (file-truename
-   :example-no-eval (file-truename "/tmp/foo/bar")
+   :no-eval (file-truename "/tmp/foo/bar")
    :result "/tmp/foo/zot")
   (file-chase-links
-   :example-no-eval (file-chase-links "/tmp/foo/bar")
+   :no-eval (file-chase-links "/tmp/foo/bar")
    :eg-result "/tmp/foo/zot")
   (vc-responsible-backend
-   :example-no-eval (vc-responsible-backend "/src/foo/bar.c")
+   :no-eval (vc-responsible-backend "/src/foo/bar.c")
    :eg-result Git)
   (file-acl
-   :example-no-eval (file-acl "/tmp/foo")
+   :no-eval (file-acl "/tmp/foo")
    :eg-result "user::rw-\ngroup::r--\nother::r--\n")
   (file-extended-attributes
-   :example-no-result (file-extended-attributes "/tmp/foo"))
+   :no-eval* (file-extended-attributes "/tmp/foo"))
   (file-selinux-context
-   :example-no-result (file-selinux-context "/tmp/foo"))
+   :no-eval* (file-selinux-context "/tmp/foo"))
   (locate-file
-   :example-no-eval (locate-file "syslog" '("/var/log" "/usr/bin"))
+   :no-eval (locate-file "syslog" '("/var/log" "/usr/bin"))
    :eg-result "/var/log/syslog")
   (executable-find
-   :example-no-eval (executable-find "ls")
+   :no-eval (executable-find "ls")
    :eg-result "/usr/bin/ls")
   "Creating"
   (make-temp-file
-   :example-no-eval (make-temp-file "/tmp/foo-")
+   :no-eval (make-temp-file "/tmp/foo-")
    :eg-result "/tmp/foo-ZcXFMj")
   (make-nearby-temp-file
-   :example-no-eval (make-nearby-temp-file "/tmp/foo-")
+   :no-eval (make-nearby-temp-file "/tmp/foo-")
    :eg-result "/tmp/foo-xe8iON")
   (write-region
-   :example-no-eval (write-region (point-min) (point-max) "/tmp/foo")
-   :eg-result-string "<no result>")
+   :no-value (write-region (point-min) (point-max) "/tmp/foo"))
   "Directories"
   (make-directory
-   :example-no-eval (make-directory "/tmp/bar/zot/" t)
-   :eg-result-string "<no result>")
+   :no-value (make-directory "/tmp/bar/zot/" t))
   (directory-files
-   :example-no-eval (directory-files "/tmp/")
+   :no-eval (directory-files "/tmp/")
    :eg-result ("." ".." ".ICE-unix" ".Test-unix"))
   (directory-files-recursively
-   :example-no-eval (directory-files-recursively "/tmp/" "\\.png\\'")
+   :no-eval (directory-files-recursively "/tmp/" "\\.png\\'")
    :eg-result ("/tmp/foo.png" "/tmp/zot.png" "/tmp/bar/foobar.png"))
   (directory-files-and-attributes
-   :example-no-result (directory-files-and-attributes "/tmp/foo"))
+   :no-eval* (directory-files-and-attributes "/tmp/foo"))
   (file-expand-wildcards
-   :example-no-eval (file-expand-wildcards "/tmp/*.png")
+   :no-eval (file-expand-wildcards "/tmp/*.png")
    :eg-result ("/tmp/foo.png" "/tmp/zot.png"))
   (locate-dominating-file
-   :example-no-eval (locate-dominating-file "foo.png" "/tmp/foo/bar/zot")
+   :no-eval (locate-dominating-file "foo.png" "/tmp/foo/bar/zot")
    :eg-result "/tmp/foo.png")
   (copy-directory
-   :example-no-eval (copy-directory "/tmp/bar/" "/tmp/barcopy")
-   :eg-result-string "<no result>")
+   :no-value (copy-directory "/tmp/bar/" "/tmp/barcopy"))
   (delete-directory
-   :example-no-eval (delete-directory "/tmp/bar/")
-   :eg-result-string "<no result>")
+   :no-value (delete-directory "/tmp/bar/"))
   "File Operations"
   (rename-file
-   :example-no-eval (rename-file "/tmp/foo" "/tmp/newname")
-   :eg-result-string "<no result>")
+   :no-value (rename-file "/tmp/foo" "/tmp/newname"))
   (copy-file
-   :example-no-eval (copy-file "/tmp/foo" "/tmp/foocopy")
-   :eg-result-string "<no result>")
+   :no-value (copy-file "/tmp/foo" "/tmp/foocopy"))
   (delete-file
-   :example-no-eval (delete-file "/tmp/foo")
-   :eg-result-string "<no result>")
+   :no-value (delete-file "/tmp/foo"))
   (make-empty-file
-   :example-no-eval (make-empty-file "/tmp/foo")
-   :eg-result-string "<no result>")
+   :no-value (make-empty-file "/tmp/foo"))
   (make-symbolic-link
-   :example-no-eval (make-symbolic-link "/tmp/foo" "/tmp/foosymlink")
-   :eg-result-string "<no result>")
+   :no-value (make-symbolic-link "/tmp/foo" "/tmp/foosymlink"))
   (add-name-to-file
-   :example-no-eval (add-name-to-file "/tmp/foo" "/tmp/bar")
-   :eg-result-string "<no result>")
+   :no-value (add-name-to-file "/tmp/foo" "/tmp/bar"))
   (set-file-modes
-   :example-no-eval "(set-file-modes \"/tmp/foo\" #o644)"
-   :eg-result-string "<no result>")
+   :no-value "(set-file-modes \"/tmp/foo\" #o644)")
   (set-file-times
-   :example-no-eval (set-file-times "/tmp/foo" (current-time))
-   :eg-result-string "<no result>")
+   :no-value (set-file-times "/tmp/foo" (current-time)))
   "File Modes"
   (set-default-file-modes
-   :example-no-eval "(set-default-file-modes #o755)"
-   :eg-result-string "<no result>")
+   :no-value "(set-default-file-modes #o755)")
   (default-file-modes
-   :example-no-eval (default-file-modes)
-   :eg-result-string "#o755")
+    :no-eval (default-file-modes)
+    :eg-result-string "#o755")
   (file-modes-symbolic-to-number
-   :example-no-eval (file-modes-symbolic-to-number "a+r")
+   :no-eval (file-modes-symbolic-to-number "a+r")
    :eg-result-string "#o444")
   (file-modes-number-to-symbolic
-   :example "(file-modes-number-to-symbolic #o444)"
+   :eval "(file-modes-number-to-symbolic #o444)"
    :result "-r--r--r--")
   (set-file-extended-attributes
-   :example-no-eval (set-file-extended-attributes
-                     "/tmp/foo" '((acl . "group::rxx")))
+   :no-eval (set-file-extended-attributes
+             "/tmp/foo" '((acl . "group::rxx")))
    :eg-result t)
   (set-file-selinux-context
-   :example-no-eval (set-file-selinux-context
-                     "/tmp/foo" '(unconfined_u object_r user_home_t s0))
+   :no-eval (set-file-selinux-context
+             "/tmp/foo" '(unconfined_u object_r user_home_t s0))
    :eg-result t)
   (set-file-acl
-   :example-no-eval (set-file-acl "/tmp/foo" "group::rxx")
+   :no-eval (set-file-acl "/tmp/foo" "group::rxx")
    :eg-result t))
 
 
 (define-short-documentation-group list
   "Making Lists"
   (make-list
-   :example (make-list 5 'a))
+   :eval (make-list 5 'a))
   (cons
-   :example (cons 1 '(2 3 4)))
+   :eval (cons 1 '(2 3 4)))
   (list
-   :example (list 1 2 3))
+   :eval (list 1 2 3))
   "Operations on Lists"
   (append
-   :example (append '("foo" "bar") '("zot")))
+   :eval (append '("foo" "bar") '("zot")))
   (flatten-tree
-   :example (flatten-tree '(1 (2 3) 4)))
+   :eval (flatten-tree '(1 (2 3) 4)))
   (car
-   :example (car '(one two three)))
+   :eval (car '(one two three)))
   (cdr
-   :example (cdr '(one two three)))
+   :eval (cdr '(one two three)))
   (push
-   :example-no-result (push 'a list))
+   :no-eval* (push 'a list))
   "Mapping Over Lists"
   (mapcar
-   :example (mapcar #'1+ '(1 2 3)))
+   :eval (mapcar #'1+ '(1 2 3)))
   (reduce
-   :example (reduce #'+ '(1 2 3)))
+   :eval (reduce #'+ '(1 2 3)))
   (mapconcat
-   :example (mapconcat #'identity '("foo" "bar") "|"))
+   :eval (mapconcat #'identity '("foo" "bar") "|"))
   "Predicates"
   (listp
-   :example (listp '(1 2 3))
-   :example (listp nil)
-   :example (listp '(1 . 2)))
+   :eval (listp '(1 2 3))
+   :eval (listp nil)
+   :eval (listp '(1 . 2)))
   (consp
-   :example (consp '(1 2 3))
-   :example (consp nil))
+   :eval (consp '(1 2 3))
+   :eval (consp nil))
   (proper-list-p
-   :example (proper-list-p '(1 2 3))
-   :example (proper-list-p nil)
-   :example (proper-list-p '(1 . 2)))
+   :eval (proper-list-p '(1 2 3))
+   :eval (proper-list-p nil)
+   :eval (proper-list-p '(1 . 2)))
   (null
-   :example (null nil)))
+   :eval (null nil)))
 
 (define-short-documentation-group vector
   (make-vector
-   :example (make-vector 5 "foo"))
+   :eval (make-vector 5 "foo"))
   (vectorp
-   :example (vectorp [1])
-   :example (vectorp "1"))
+   :eval (vectorp [1])
+   :eval (vectorp "1"))
   (length
-   :example (length [1 2 3]))
+   :eval (length [1 2 3]))
   (seq-subseq
-   :example (seq-subseq [1 2 3 4 5] 1 3)
-   :example (seq-subseq [1 2 3 4 5] 1)))
+   :eval (seq-subseq [1 2 3 4 5] 1 3)
+   :eval (seq-subseq [1 2 3 4 5] 1)))
 
 (define-short-documentation-group regexp
   "Matching Strings"
   (replace-regexp-in-string
-   :example (replace-regexp-in-string "[a-z]+" "_" "*foo*"))
+   :eval (replace-regexp-in-string "[a-z]+" "_" "*foo*"))
   (string-match-p
-   :example (string-match-p "^[fo]+" "foobar"))
+   :eval (string-match-p "^[fo]+" "foobar"))
   (match-string
-   :example (and (string-match "^[fo]+" "foobar") (match-string 0 "foobar")))
+   :eval (and (string-match "^\\([fo]+\\)b" "foobar")
+              (match-string 0 "foobar")))
   (match-beginning
-   :example-no-result (match-beginning 1))
+   :no-eval (match-beginning 1)
+   :eg-result 0)
   (match-end
-   :example-no-result (match-end 2))
+   :no-eval (match-end 1)
+   :eg-result 3)
   "Looking in Buffers"
   (re-search-forward
-   :example-no-result (re-search-forward "^foo$" nil t))
+   :no-eval (re-search-forward "^foo$" nil t)
+   :eg-result 43)
   (re-search-backward
-   :example-no-result (re-search-backward "^foo$" nil t))
+   :no-eval (re-search-backward "^foo$" nil t)
+   :eg-result 43)
   (looking-at-p
-   :example-no-result (looking-at "f[0-9"))
+   :no-eval (looking-at "f[0-9")
+   :eg-result t)
   "Utilities"
   (regexp-quote
-   :example (regexp-quote "foo.*bar"))
+   :eval (regexp-quote "foo.*bar"))
   (regexp-opt
-   :example (regexp-opt '("foo" "bar"))))
+   :eval (regexp-opt '("foo" "bar"))))
 
 (define-short-documentation-group sequence
   "Sequence Predicates"
   (seq-contains-p
-   :example (seq-contains '(a b c) 'b)
-   :example (seq-contains '(a b c) 'd))
+   :eval (seq-contains '(a b c) 'b)
+   :eval (seq-contains '(a b c) 'd))
   (seq-every-p
-   :example (seq-every-p #'numberp '(1 2 3)))
+   :eval (seq-every-p #'numberp '(1 2 3)))
   (seq-empty-p
-   :example (seq-empty-p []))
+   :eval (seq-empty-p []))
   (seq-set-equal-p
-   :example (seq-set-equal-p '(1 2 3) '(3 1 2)))
+   :eval (seq-set-equal-p '(1 2 3) '(3 1 2)))
   (seq-some
-   :example (seq-some #'cl-evenp '(1 2 3)))
+   :eval (seq-some #'cl-evenp '(1 2 3)))
   "Building Sequences"
   (seq-concatenate
-   :example (seq-concatenate 'vector '(1 2) '(c d)))
+   :eval (seq-concatenate 'vector '(1 2) '(c d)))
   (seq-copy
-   :example (seq-copy '(a 2)))
+   :eval (seq-copy '(a 2)))
   (seq-into
-   :example (seq-into '(1 2 3) 'vector))
+   :eval (seq-into '(1 2 3) 'vector))
   "Utility Functions"
   (seq-count
-   :example (seq-count #'numberp '(1 b c 4)))
+   :eval (seq-count #'numberp '(1 b c 4)))
   (seq-elt
-   :example (seq-elt '(a b c) 1))
+   :eval (seq-elt '(a b c) 1))
   (seq-random-elt
-   :example-no-result (seq-random-elt '(a b c)))
+   :no-eval (seq-random-elt '(a b c))
+   :eg-result c)
   (seq-find
-   :example (seq-find #'numberp '(a b 3 4 f 6)))
+   :eval (seq-find #'numberp '(a b 3 4 f 6)))
   (seq-position
-   :example (seq-position '(a b c) 'c))
+   :eval (seq-position '(a b c) 'c))
   (seq-length
-   :example (seq-length "abcde"))
+   :eval (seq-length "abcde"))
   (seq-max
-   :example (seq-max [1 2 3]))
+   :eval (seq-max [1 2 3]))
   (seq-min
-   :example (seq-min [1 2 3]))
+   :eval (seq-min [1 2 3]))
   (seq-first
-   :example (seq-first [a b c]))
+   :eval (seq-first [a b c]))
   (seq-rest
-   :example (seq-rest '[1 2 3]))
+   :eval (seq-rest '[1 2 3]))
   (seq-reverse
-   :example (seq-reverse '(1 2 3)))
+   :eval (seq-reverse '(1 2 3)))
   (seq-sort
-   :example (seq-sort #'> '(1 2 3)))
+   :eval (seq-sort #'> '(1 2 3)))
   (seq-sort-by
-   :example (seq-sort-by (lambda (a) (/ 1.0 a)) #'< '(1 2 3)))
+   :eval (seq-sort-by (lambda (a) (/ 1.0 a)) #'< '(1 2 3)))
   "Mapping Over Sequences"
   (seq-map
-   :example (seq-map #'1+ '(1 2 3)))
+   :eval (seq-map #'1+ '(1 2 3)))
   (seq-map-indexed
-   :example (seq-map-indexed (lambda (a i) (cons i a)) '(a b c)))
+   :eval (seq-map-indexed (lambda (a i) (cons i a)) '(a b c)))
   (seq-mapcat
-   :example (seq-mapcat #'upcase '("a" "b" "c") 'string))
+   :eval (seq-mapcat #'upcase '("a" "b" "c") 'string))
   (seq-do
-   :example-no-result (seq-do (lambda (a) (insert a)) '("foo" "bar")))
+   :no-eval (seq-do (lambda (a) (insert a)) '("foo" "bar"))
+   :eg-result ("foo" "bar"))
   (seq-do-indexed
-   :example-no-result (seq-do-indexed
-                       (lambda (a index) (message "%s:%s" index a))
-                       '("foo" "bar")))
+   :no-eval (seq-do-indexed
+             (lambda (a index) (message "%s:%s" index a))
+             '("foo" "bar"))
+   :eg-result nil)
   (seq-reduce
-   :example (seq-reduce #'* [1 2 3] 2))
+   :eval (seq-reduce #'* [1 2 3] 2))
   "Excerpting Sequences"
   (seq-drop
-   :example (seq-drop '(a b c) 2))
+   :eval (seq-drop '(a b c) 2))
   (seq-drop-while
-   :example (seq-drop-while #'numberp '(1 2 c d 5)))
+   :eval (seq-drop-while #'numberp '(1 2 c d 5)))
   (seq-filter
-   :example (seq-filter #'numberp '(a b 3 4 f 6)))
+   :eval (seq-filter #'numberp '(a b 3 4 f 6)))
   (seq-remove
-   :example (seq-remove #'numberp '(1 2 c d 5)))
+   :eval (seq-remove #'numberp '(1 2 c d 5)))
   (seq-group-by
-   :example (seq-group-by #'cl-plusp '(-1 2 3 -4 -5 6)))
+   :eval (seq-group-by #'cl-plusp '(-1 2 3 -4 -5 6)))
   (seq-difference
-   :example (seq-difference '(1 2 3) '(2 3 4)))
+   :eval (seq-difference '(1 2 3) '(2 3 4)))
   (seq-intersection
-   :example (seq-intersection '(1 2 3) '(2 3 4)))
+   :eval (seq-intersection '(1 2 3) '(2 3 4)))
   (seq-partition
-   :example (seq-partition '(a b c d e f g h) 3))
+   :eval (seq-partition '(a b c d e f g h) 3))
   (seq-subseq
-   :example (seq-subseq '(a b c d e) 2 4))
+   :eval (seq-subseq '(a b c d e) 2 4))
   (seq-take
-   :example (seq-take '(a b c d e) 3))
+   :eval (seq-take '(a b c d e) 3))
   (seq-take-while
-   :example (seq-take-while #'cl-evenp [2 4 9 6 5]))
+   :eval (seq-take-while #'cl-evenp [2 4 9 6 5]))
   (seq-uniq
-   :example (seq-uniq '(a b d b a c))))
+   :eval (seq-uniq '(a b d b a c))))
 
 (define-short-documentation-group buffer
   "Buffer Basics"
   (current-buffer
-   :example-no-result (current-buffer))
+   :no-eval (current-buffer)
+   :eg-result-string "#<buffer shortdoc.el>")
   (bufferp
-   :example (bufferp 23))
+   :eval (bufferp 23))
   (buffer-live-p
-   :example-no-result (buffer-live-p))
+   :no-eval (buffer-live-p some-buffer)
+   :eg-result t)
   (buffer-modified-p
-   :example (buffer-modified-p (current-buffer)))
+   :eval (buffer-modified-p (current-buffer)))
   (buffer-name
-   :example (buffer-name))
+   :eval (buffer-name))
   (window-buffer
-   :example (window-buffer))
+   :eval (window-buffer))
   "Selecting Buffers"
   (get-buffer-create
-   :example-no-result (get-buffer-create "*foo*"))
+   :no-eval (get-buffer-create "*foo*")
+   :eg-result-string "#<buffer *foo*>")
   (pop-to-buffer
-   :example-no-result (pop-to-buffer "*foo*"))
+   :no-eval (pop-to-buffer "*foo*")
+   :eg-result-string "#<buffer *foo*>")
   (with-current-buffer
-      :example-no-result (with-current-buffer buffer (buffer-size)))
+      :no-eval* (with-current-buffer buffer (buffer-size)))
   "Points and Positions"
   (point
-   :example (point))
+   :eval (point))
   (point-min
-   :example (point-max))
+   :eval (point-max))
   (point-max
-   :example (point-max))
+   :eval (point-max))
   (line-beginning-position
-   :example (line-beginning-position))
+   :eval (line-beginning-position))
   (line-end-position
-   :example (line-end-position))
+   :eval (line-end-position))
   (buffer-size
-   :example (buffer-size))
+   :eval (buffer-size))
   "Moving Around"
   (goto-char
-   :example-no-result (goto-char (point-max)))
+   :no-eval (goto-char (point-max))
+   :eg-result 342)
   (search-forward
-   :example-no-result (search-forward "some-string" nil t))
+   :no-eval (search-forward "some-string" nil t)
+   :eg-result 245)
   (re-search-forward
-   :example-no-result (re-search-forward "some-s.*g" nil t))
+   :no-eval (re-search-forward "some-s.*g" nil t)
+   :eg-result 245)
   (forward-line
-   :example-no-result (forward-line 1))
-  (backward-line
-   :example-no-result (backward-line 4))
+   :no-eval (forward-line 1)
+   :eg-result 0
+   :no-eval (forward-line -2)
+   :eg-result 0)
   "Strings from Buffers"
   (buffer-string
-   :example-no-result (buffer-string))
+   :no-eval* (buffer-string))
   (buffer-substring
-   :example (buffer-substring (point-min) (1+ (point-min))))
+   :eval (buffer-substring (point-min) (1+ (point-min))))
   (buffer-substring-no-properties
-   :example (buffer-substring-no-properties (point-min) (+ (point-min) 10)))
+   :eval (buffer-substring-no-properties (point-min) (+ (point-min) 10)))
   (following-char
-   :example-no-result (following-char))
+   :no-eval (following-char)
+   :eg-result 67)
   (char-after
-   :example (char-after 45))
+   :eval (char-after 45))
   "Altering Buffers"
   (delete-region
-   :example-no-result (delete-region (point-min) (point-max)))
+   :no-value (delete-region (point-min) (point-max)))
   (erase-buffer
-   :example-no-result (erase-buffer))
+   :no-value (erase-buffer))
   (insert
-   :example-no-result (insert "This string will be inserted in the buffer\n"))
+   :no-value (insert "This string will be inserted in the buffer\n"))
   "Locking"
   (lock-buffer
-   :example-no-result (lock-buffer "/tmp/foo"))
+   :no-value (lock-buffer "/tmp/foo"))
   (unlock-buffer
-   :example-no-result (lock-buffer)))
+   :no-value (lock-buffer)))
 
 (define-short-documentation-group process
   (make-process
-   :example-no-result (make-process :name "foo" :command '("cat" "/tmp/foo")))
+   :no-eval (make-process :name "foo" :command '("cat" "/tmp/foo"))
+   :eg-result-string "#<process foo>")
   (processp
-   :example (processp t))
+   :eval (processp t))
   (delete-process
-   :example-no-result (delete-process process))
+   :no-value (delete-process process))
   (kill-process
-   :example-no-result (kill-process process))
+   :no-value (kill-process process))
   (set-process-sentinel
-   :example-no-result (set-process-sentinel process (lambda (proc string))))
+   :no-value (set-process-sentinel process (lambda (proc string))))
   (process-buffer
-   :example-no-result (process-buffer process))
+   :no-eval (process-buffer process)
+   :eg-result-string "#<buffer *foo*>")
   (get-buffer-process
-   :example-no-result (get-buffer-process buffer))
+   :no-eval (get-buffer-process buffer)
+   :eg-result-string "#<process foo>")
   (process-live-p
-   :example-no-result (process-live-p process)))
+   :no-eval (process-live-p process)
+   :eg-result t))
 
 (defun shortdoc-display-group (group)
   "Pop to a buffer and display short documentation for functions in GROUP."
@@ -686,7 +696,7 @@ There can be any number of :example/:result elements."
       (cl-loop for (type value) on data by #'cddr
                do
                (cl-case type
-                (:example
+                (:eval
                  (if (stringp value)
                       (insert "  " value "\n")
                     (insert "  ")
@@ -695,7 +705,7 @@ There can be any number of :example/:result elements."
                     (insert "    => ")
                     (prin1 (eval value) (current-buffer))
                     (insert "\n")))
-                (:example-no-result
+                (:no-eval*
                  (if (stringp value)
                      (insert "  " value "\n")
                    (insert "  ")
@@ -704,7 +714,13 @@ There can be any number of :example/:result elements."
                          (propertize "[it depends]"
                                      'face 'variable-pitch)
                          "\n"))
-                (:example-no-eval
+                (:no-value
+                 (if (stringp value)
+                     (insert "  " value)
+                   (insert "  ")
+                   (prin1 value (current-buffer)))
+                 (insert "\n"))
+                (:no-eval
                  (if (stringp value)
                      (insert "  " value)
                    (insert "  ")
@@ -739,7 +755,7 @@ Example:
 
   (shortdoc-add-function
     'file \"Predicates\"
-    '(file-locked-p :example-no-eval (file-locked-p \"/tmp\")))"
+    '(file-locked-p :no-eval (file-locked-p \"/tmp\")))"
   (let ((glist (assq group shortdoc--groups)))
     (unless glist
       (setq glist (list group))
