@@ -94,6 +94,8 @@ There can be any number of :example/:result elements."
   (mapconcat
    :eval (mapconcat (lambda (a) (concat "[" a "]"))
                     '("foo" "bar" "zot") " "))
+  (mapcar
+   :eval (mapcar #'identity "123"))
   (format
    :eval (format "This number is %d" 4))
   "Manipulating Strings"
@@ -174,6 +176,8 @@ There can be any number of :example/:result elements."
    :eval (length "foo"))
   (string-search
    :eval (string-search "bar" "foobarzot"))
+  (assoc-string
+   :eval (assoc-string "foo" '(("a" 1) (foo 2))))
   (seq-position
    :eval "(seq-position \"foobarzot\" ?z)"
    :result 6))
@@ -524,6 +528,10 @@ There can be any number of :example/:result elements."
    :eval (vectorp "1"))
   (length
    :eval (length [1 2 3]))
+  (mapcar
+   :eval (mapcar #'identity [1 2 3]))
+  (reduce
+   :eval (reduce #'+ [1 2 3]))
   (seq-subseq
    :eval (seq-subseq [1 2 3 4 5] 1 3)
    :eval (seq-subseq [1 2 3 4 5] 1)))
