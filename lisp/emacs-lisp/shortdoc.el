@@ -280,7 +280,7 @@ There can be any number of :example/:result elements."
    :no-eval* (file-attributes "/tmp"))
   (file-truename
    :no-eval (file-truename "/tmp/foo/bar")
-   :result "/tmp/foo/zot")
+   :eg-result "/tmp/foo/zot")
   (file-chase-links
    :no-eval (file-chase-links "/tmp/foo/bar")
    :eg-result "/tmp/foo/zot")
