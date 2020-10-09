@@ -139,6 +139,14 @@ There can be any number of :example/:result elements."
   "Predicates for Strings"
   (string-equal
    :eval (string-equal "foo" "foo"))
+  (eq
+   :eval (eq "foo" "foo"))
+  (eql
+   :eval (eql "foo" "foo"))
+  (equal
+   :eval (equal "foo" "foo"))
+  (cl-equalp
+   :eval (cl-equalp "Foo" "foo"))
   (stringp
    :eval "(stringp ?a)")
   (string-empty-p
@@ -526,9 +534,15 @@ There can be any number of :example/:result elements."
 (define-short-documentation-group vector
   (make-vector
    :eval (make-vector 5 "foo"))
+  (vector
+   :eval (vector 1 "b" 3))
   (vectorp
    :eval (vectorp [1])
    :eval (vectorp "1"))
+  (vconcat
+   :eval (vconcat '(1 2) [3 4]))
+  (append
+   :eval (append [1 2] nil))
   (length
    :eval (length [1 2 3]))
   (mapcar
@@ -568,7 +582,11 @@ There can be any number of :example/:result elements."
   (regexp-quote
    :eval (regexp-quote "foo.*bar"))
   (regexp-opt
-   :eval (regexp-opt '("foo" "bar"))))
+   :eval (regexp-opt '("foo" "bar")))
+  (regexp-opt-depth
+   :eval (regexp-opt-depth "\\(a\\(b\\)\\)"))
+  (regexp-opt-charset
+   :eval (regexp-opt-charset '(?a ?b ?c ?d ?e))))
 
 (define-short-documentation-group sequence
   "Sequence Predicates"
@@ -815,6 +833,9 @@ There can be any number of :example/:result elements."
    :eval (>= 1 2 3))
   (zerop
    :eval (zerop 0))
+  (cl-plusp
+   :eval (cl-plusp 0)
+   :eval (cl-plusp 1))
   (bignump
    :eval (bignump 4)
    :eval (bignump (expt 2 90)))
