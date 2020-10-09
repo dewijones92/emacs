@@ -718,7 +718,7 @@ There can be any number of :example/:result elements."
   (buffer-string
    :no-eval* (buffer-string))
   (buffer-substring
-   :eval (buffer-substring (point-min) (1+ (point-min))))
+   :eval (buffer-substring (point-min) (+ (point-min) 10)))
   (buffer-substring-no-properties
    :eval (buffer-substring-no-properties (point-min) (+ (point-min) 10)))
   (following-char
@@ -788,23 +788,6 @@ There can be any number of :example/:result elements."
   (1-
    :eval (1- 4))
   "Predicates"
-  (bignump
-   :eval (bignump 4)
-   :eval (bignump (expt 2 90)))
-  (fixnump
-   :eval (fixnump 4)
-   :eval (fixnump (expt 2 90)))
-  (floatp
-   :eval (floatp 5.4))
-  (integerp
-   :eval (intergerp 5.4))
-  (numberp
-   :eval (numberp "5.4"))
-  (natnump
-   :eval (natnump -1)
-   :eval (natnump 23))
-  (zerop
-   :eval (zerop 0))
   (=
    :eval (= 4 4)
    :eval (= 4.0 4.0)
@@ -830,6 +813,23 @@ There can be any number of :example/:result elements."
   (>=
    :eval (>= 4 4)
    :eval (>= 1 2 3))
+  (zerop
+   :eval (zerop 0))
+  (bignump
+   :eval (bignump 4)
+   :eval (bignump (expt 2 90)))
+  (fixnump
+   :eval (fixnump 4)
+   :eval (fixnump (expt 2 90)))
+  (floatp
+   :eval (floatp 5.4))
+  (integerp
+   :eval (integerp 5.4))
+  (numberp
+   :eval (numberp "5.4"))
+  (natnump
+   :eval (natnump -1)
+   :eval (natnump 23))
   "Operations"
   (max
    :eval (max 7 9 3))
@@ -859,11 +859,14 @@ There can be any number of :example/:result elements."
    :eval (random 6))
   "Bit Operations"
   (ash
-   :eval (ash 1 4))
+   :eval (ash 1 4)
+   :eval (ash 16 -1))
   (lsh
-   :eval (lsh 1 4))
+   :eval (lsh 1 4)
+   :eval (lsh 16 -1))
   (logand
-   :eval (logand 2 7))
+   :no-eval "(logand #b10 #b111)"
+   :result-string "#b10")
   (logior
    :eval (logior 4 16))
   (logxor
@@ -891,17 +894,17 @@ There can be any number of :example/:result elements."
    :eval (fround 1.2))
   "Standard Math Functions"
   (sin
-   :eval (sin pi))
+   :eval (sin float-pi))
   (cos
-   :eval (cos pi))
+   :eval (cos float-pi))
   (tan
-   :eval (tan pi))
+   :eval (tan float-pi))
   (asin
-   :eval (asin pi))
+   :eval (asin float-pi))
   (acos
-   :eval (acos pi))
+   :eval (acos float-pi))
   (atan
-   :eval (atan pi))
+   :eval (atan float-pi))
   (exp
    :eval (exp 4))
   (log
