@@ -437,7 +437,11 @@ There can be any number of :example/:result elements."
    :eval (delete-dups (list 1 2 4 3 2 4)))
   "Mapping Over Lists"
   (mapcar
-   :eval (mapcar #'1+ '(1 2 3)))
+   :eval (mapcar #'list '(1 2 3)))
+  (mapcan
+   :eval (mapcan #'list '(1 2 3)))
+  (mapc
+   :eval (mapc #'insert '("1" "2" "3")))
   (reduce
    :eval (reduce #'+ '(1 2 3)))
   (mapconcat
@@ -756,6 +760,156 @@ There can be any number of :example/:result elements."
   (process-live-p
    :no-eval (process-live-p process)
    :eg-result t))
+
+(define-short-documentation-group number
+  "Arithmetic"
+  (+
+   :eval (+ 1 2)
+   :eval (+ 1 2 3 4))
+  (-
+   :eval (- 3 2)
+   :eval (- 6 3 2))
+  (*
+   :eval (* 3 4 5))
+  (/
+   :eval (/ 10 5)
+   :eval (/ 10 6)
+   :eval (/ 10.0 6)
+   :eval (/ 10.0 3 3))
+  (%
+   :eval (% 10 5)
+   :eval (% 10 6))
+  (mod
+   :eval (mod 10 5)
+   :eval (mod 10 6)
+   :eval (mod 10.5 6))
+  (1+
+   :eval (1+ 2))
+  (1-
+   :eval (1- 4))
+  "Predicates"
+  (bignump
+   :eval (bignump 4)
+   :eval (bignump (expt 2 90)))
+  (fixnump
+   :eval (fixnump 4)
+   :eval (fixnump (expt 2 90)))
+  (floatp
+   :eval (floatp 5.4))
+  (integerp
+   :eval (intergerp 5.4))
+  (numberp
+   :eval (numberp "5.4"))
+  (natnump
+   :eval (natnump -1)
+   :eval (natnump 23))
+  (zerop
+   :eval (zerop 0))
+  (=
+   :eval (= 4 4)
+   :eval (= 4.0 4.0)
+   :eval (= 4 5 6 7))
+  (eq
+   :eval (eq 4 4)
+   :eval (eq 4.0 4.0))
+  (eql
+   :eval (eql 4 4)
+   :eval (eql 4 "4")
+   :eval (eql 4.0 4.0))
+  (/=
+   :eval (/= 4 4))
+  (<
+   :eval (< 4 4)
+   :eval (< 1 2 3))
+  (<=
+   :eval (<= 4 4)
+   :eval (<= 1 2 3))
+  (>
+   :eval (> 4 4)
+   :eval (> 1 2 3))
+  (>=
+   :eval (>= 4 4)
+   :eval (>= 1 2 3))
+  "Operations"
+  (max
+   :eval (max 7 9 3))
+  (min
+   :eval (min 7 9 3))
+  (abs
+   :eval (abs -4))
+  (float
+   :eval (float 2))
+  (truncate
+   :eval (truncate 1.2)
+   :eval (truncate -1.2)
+   :eval (truncate 5.4 2))
+  (floor
+   :eval (floor 1.2)
+   :eval (floor -1.2)
+   :eval (floor 5.4 2))
+  (ceiling
+   :eval (ceiling 1.2)
+   :eval (ceiling -1.2)
+   :eval (ceiling 5.4 2))
+  (round
+   :eval (round 1.2)
+   :eval (round -1.2)
+   :eval (round 5.4 2))
+  (random
+   :eval (random 6))
+  "Bit Operations"
+  (ash
+   :eval (ash 1 4))
+  (lsh
+   :eval (lsh 1 4))
+  (logand
+   :eval (logand 2 7))
+  (logior
+   :eval (logior 4 16))
+  (logxor
+   :eval (logxor 4 16))
+  (lognot
+   :eval (lognot 5))
+  (logcount
+   :eval (logcount 5))
+  "Floating Point"
+  (isnan
+   :eval (isnan 5.0))
+  (frexp
+   :eval (frexp 5.7))
+  (ldexp
+   :eval (ldexp 0.7125 3))
+  (logb
+   :eval (logb 10.5))
+  (ffloor
+   :eval (floor 1.2))
+  (fceiling
+   :eval (fceiling 1.2))
+  (ftruncate
+   :eval (ftruncate 1.2))
+  (fround
+   :eval (fround 1.2))
+  "Standard Math Functions"
+  (sin
+   :eval (sin pi))
+  (cos
+   :eval (cos pi))
+  (tan
+   :eval (tan pi))
+  (asin
+   :eval (asin pi))
+  (acos
+   :eval (acos pi))
+  (atan
+   :eval (atan pi))
+  (exp
+   :eval (exp 4))
+  (log
+   :eval (log 54.59))
+  (expt
+   :eval (expt 2 16))
+  (sqrt
+   :eval (sqrt -1)))
 
 (defun shortdoc-display-group (group)
   "Pop to a buffer and display short documentation for functions in GROUP."
