@@ -922,6 +922,17 @@ is unreadable or should be on a particular form:
 :eg-result-string "#o755"
 @end example
 
+@item :no-manual
+This function is not documented in the manual.
+
+@item :args
+By default, the function's actual argument list is shown.  If
+@code{:args} is present, use that instead.
+
+@example
+:args (regexp string)
+@end example
+
 @end table
 
 @defun shortdoc-add-function shortdoc-add-function group section elem
