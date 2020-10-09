@@ -57,8 +57,12 @@ FUNCTIONS is a list of elements on the form:
   (fun
    :no-manual BOOL
    :args ARGS
-   :example EXAMPLE-FORM
-   :result RESULT-FORM)
+   :eval EXAMPLE-FORM
+   :no-eval EXAMPLE-FORM
+   :no-value EXAMPLE-FORM
+   :result RESULT-FORM
+   :eg-result RESULT-FORM
+   :eg-result-string RESULT-FORM)
 
 BOOL should be non-nil if the function isn't documented in the
 manual.
@@ -66,10 +70,10 @@ manual.
 ARGS is optional, and the functions definition is displayed
 instead in not present.
 
-If EXAMPLE-FORM isn't a string, it will be printed with `prin1',
-and then evaled to give a result, which is also printed.  If it's
-a string, it'll be inserted as is.  In that case, there should be
-a form that says what the result should be.
+If EVAL isn't a string, it will be printed with `prin1', and then
+evaled to give a result, which is also printed.  If it's a
+string, it'll be inserted as is, then the string will be `read',
+and then evaled.
 
 There can be any number of :example/:result elements."
   `(progn
@@ -81,11 +85,9 @@ There can be any number of :example/:result elements."
   "Making Strings"
   (make-string
    :args (length init)
-   :eval "(make-string 5 ?x)"
-   :result "xxxxx")
+   :eval "(make-string 5 ?x)")
   (string
-   :eval "(string ?a ?b ?c)"
-   :result "abc")
+   :eval "(string ?a ?b ?c)")
   (concat
    :eval (concat "foo" "bar" "zot"))
   (string-join
@@ -138,8 +140,7 @@ There can be any number of :example/:result elements."
   (string-equal
    :eval (string-equal "foo" "foo"))
   (stringp
-   :eval "(stringp ?a)"
-   :result t)
+   :eval "(stringp ?a)")
   (string-empty-p
    :no-manual t
    :eval (string-empty-p ""))
@@ -179,8 +180,7 @@ There can be any number of :example/:result elements."
   (assoc-string
    :eval (assoc-string "foo" '(("a" 1) (foo 2))))
   (seq-position
-   :eval "(seq-position \"foobarzot\" ?z)"
-   :result 6))
+   :eval "(seq-position \"foobarzot\" ?z)"))
 
 (define-short-documentation-group file-name
   "File Name Manipulation"
@@ -361,8 +361,7 @@ There can be any number of :example/:result elements."
    :no-eval (file-modes-symbolic-to-number "a+r")
    :eg-result-string "#o444")
   (file-modes-number-to-symbolic
-   :eval "(file-modes-number-to-symbolic #o444)"
-   :result "-r--r--r--")
+   :eval "(file-modes-number-to-symbolic #o444)")
   (set-file-extended-attributes
    :no-eval (set-file-extended-attributes
              "/tmp/foo" '((acl . "group::rxx")))
@@ -559,7 +558,7 @@ There can be any number of :example/:result elements."
    :no-eval (re-search-backward "^foo$" nil t)
    :eg-result 43)
   (looking-at-p
-   :no-eval (looking-at "f[0-9")
+   :no-eval (looking-at "f[0-9]")
    :eg-result t)
   "Utilities"
   (regexp-quote
@@ -760,6 +759,10 @@ There can be any number of :example/:result elements."
 
 (defun shortdoc-display-group (group)
   "Pop to a buffer and display short documentation for functions in GROUP."
+  (interactive (list (completing-read "Show functions in: "
+                                      (mapcar #'car shortdoc--groups))))
+  (when (stringp group)
+    (setq group (intern group)))
   (unless (assq group shortdoc--groups)
     (error "No such documentation group %s" group))
   (pop-to-buffer (format "*Shortdoc %s*" group))
@@ -841,6 +844,10 @@ There can be any number of :example/:result elements."
                  (insert "    => ")
                  (prin1 value (current-buffer))
                  (insert "\n"))
+                (:result-string
+                 (insert "    => ")
+                 (princ value (current-buffer))
+                 (insert "\n"))
                 (:eg-result
                  (insert "    eg. => ")
                  (prin1 value (current-buffer))
@@ -874,7 +881,7 @@ Example:
     (let ((slist (member section glist)))
       (unless slist
         (setq slist (list section))
-        (append glist slist))
+        (setq slist (append glist slist)))
       (while (and (cdr slist)
                   (not (stringp (cadr slist))))
         (setq slist (cdr slist)))
