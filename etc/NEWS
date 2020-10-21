@@ -736,6 +736,7 @@ key             binding
 / s             package-menu-filter-by-status
 / v             package-menu-filter-by-version
 / m             package-menu-filter-marked
+/ u             package-menu-filter-upgradable
 / /             package-menu-filter-clear
 
 ---
@@ -1499,6 +1500,11 @@ This is no longer supported, and setting this variable has no effect.
 ** The macro 'with-displayed-buffer-window' is now obsolete.
 Use macro 'with-current-buffer-window' with action alist entry 'body-function'.
 
++++
+** `byte-compile-file' optional argument LOAD is now obsolete.
+To load the file after byte-compiling, add a call to 'load' from Lisp
+or use 'M-x emacs-lisp-byte-compile-and-load' interactively.
+
 ** The metamail.el library is now marked obsolete.
 
 ---
@@ -1741,6 +1747,9 @@ It is meant as an (experimental) aid for converting Emacs Lisp code
 to lexical binding, where dynamic (special) variables bound in one
 file can affect code in another.  For details, see the manual section
 '(Elisp) Converting to Lexical Binding'.
+
+---
+** 'unload-feature' now also tries to undo additions to buffer-local hooks.
 
 
 * Changes in Emacs 28.1 on Non-Free Operating Systems
