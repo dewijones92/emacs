@@ -308,6 +308,9 @@ and variables.
 
 ** Archive mode
 
+---
+*** Archive Mode can now parse .squashfs files.
+
 *** Can now modify members of 'ar' archives.
 
 *** Display of summaries unified between backends.
@@ -1166,6 +1169,13 @@ window after starting).  This variable defaults to nil.
 +++
 *** 'widget-choose' now supports menus in extended format.
 
+---
+*** The 'editable-list' widget now supports moving items up and down.
+You can now move items up and down by deleting and then reinserting
+them, using the DEL and INS buttons respectively.  This is useful in
+Custom buffers, for example, to change the order of the elements in a
+list.
+
 ** Miscellaneous
 
 ---
@@ -1314,6 +1324,16 @@ to 'tab-bar-new-tab-choice' for new tabs to show the bookmark list.
 *** Movement commands in 'gomoku-mode' are fixed.
 'gomoku-move-sw' and 'gomoku-move-ne' now work correctly, and
 horizontal movements now stop at the edge of the board.
+
+** xterm-mouse mode
+
+---
+*** TTY menu navigation is now supported in 'xterm-mouse-mode'.
+TTY menus support mouse navigation and selection when xterm-mouse-mode
+is active.  When run on a terminal, clicking on the menu bar with the
+mouse now pops up a TTY menu by default instead of running the command
+'tmm-menubar'.  To restore the old behavior, set the variable
+'tty-menu-open-use-tmm' to non-nil.
 
 ** xwidget-webkit mode
 
@@ -1737,6 +1757,14 @@ convert them to a list '(R G B)' of primary color values.
 ** User option 'uniquify-buffer-name-style' can now be a function.
 This user option can be one of the predefined styles or a function to
 personalize the uniquified buffer name.
+
++++
+** New variable 'tty-menu-calls-mouse-position-function'.
+This controls whether 'mouse-position-function' is called by functions
+that retrieve the mouse position when that happens during TTY menu
+handling.  Lisp programs that set 'mouse-position-function' should
+also set this variable non-nil if they are compatible with the tty
+menu handling.
 
 +++
 ** 'inhibit-nul-byte-detection' is renamed to 'inhibit-null-byte-detection'.
