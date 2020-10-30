@@ -163,6 +163,12 @@ your init file:
     (setq frame-title-format '(multiple-frames "%b"
                               ("" invocation-name "@" system-name)))
 
++++
+** 'nobreak-char-display' now also affects all non-ASCII space characters.
+Previously, this was limited only to NO-BREAK-SPACE and hyphen
+characters.  Now it also covers the rest of the non-ASCII Unicode
+space characters.
+
 
 * Editing Changes in Emacs 28.1
 
@@ -1202,7 +1208,23 @@ them, using the DEL and INS buttons respectively.  This is useful in
 Custom buffers, for example, to change the order of the elements in a
 list.
 
+** Diff
+
+---
+*** New 'diff-mode' font locking face 'diff-error'.
+This face is used for error messages from diff.
+
++++
+*** New command 'diff-refresh-hunk'.
+This new command (bound to 'C-c C-l') regenerates the current hunk.
+
+
 ** Miscellaneous
+
++++
+*** 'format-seconds' can now be used for sub-second times.
+The new optional "," parameter has been added, and
+(format-seconds "%mm %,1ss" 66.4) will now result in "1m 6.4s".
 
 ---
 *** 'global-display-fill-column-indicator-mode' skips some buffers.
@@ -1296,10 +1318,6 @@ prompts.  This means that prompts that look like "Enter a number
 number [10]", or not have the default displayed at all, like "Enter a
 number".  (This requires that all callers are altered to use
 'format-prompt', though.)
-
----
-*** New 'diff-mode' font locking face 'diff-error'.
-This face is used for error messages from diff.
 
 +++
 *** New global mode 'global-goto-address-mode'.
