@@ -1134,6 +1134,13 @@ project's root directory, respectively.
 +++
 *** New user option 'project-list-file'.
 
+** xref
+
+---
+*** Prefix arg of 'xref-goto-xref' quits the *xref* buffer.
+So typing 'C-u RET' in the *xref* buffer quits its window
+before navigating to the selected location.
+
 ** json.el
 
 ---
@@ -1250,6 +1257,11 @@ and the result is not truncated in any way.
 *** The '/' operator now has higher precedence in (La)TeX input mode.
 It no longer has lower precedence than '+' and '-'.
 
+---
+*** Calc now marks its windows dedicated.
+The new user option 'calc-make-windows-dedicated' controls this.  It
+is t by default; set to nil to get back the old behavior.
+
 ** term-mode
 
 ---
@@ -1320,6 +1332,11 @@ visited errors, so you can have an overview what errors were already visited.
 *** New user option 'tab-first-completion'.
 If 'tab-always-indent' is 'complete', this new user option can be used to
 further tweak whether to complete or indent.
+
+---
+*** 'dired-query' now uses 'read-char-from-minibuffer'.
+Using it instead of 'read-char-choice' allows using 'C-x o'
+to switch to the help window displayed after typing 'C-h'.
 
 ---
 *** 'zap-up-to-char' now uses 'read-char-from-minibuffer'.
