@@ -88,16 +88,6 @@ If this is a function, call it to generate the initial field text."
                  (const :tag "Default" t))
   :risky t)
 
-(defcustom bibtex-unify-case-convert #'identity
-  "Function called when unifying case on entry and field names.
-It is called with one argument, the entry or field name."
-  :version "28.1"
-  :type '(choice (const :tag "Same case as in `bibtex-field-alist'" identity)
-		 (const :tag "Downcase" downcase)
-		 (const :tag "Capitalize" capitalize)
-		 (const :tag "Upcase" upcase)
-                 (function :tag "Conversion function")))
-
 (defcustom bibtex-user-optional-fields
   '(("annote" "Personal annotation (ignored)"))
   "List of optional fields the user wants to have always present.
@@ -133,7 +123,7 @@ last-comma          Add or delete comma on end of last field in entry,
 delimiters          Change delimiters according to variables
                       `bibtex-field-delimiters' and `bibtex-entry-delimiters'.
 unify-case          Change case of entry and field names according to
-                      `bibtex-unify-case-convert'.
+                      `bibtex-unify-case-function'.
 braces              Enclose parts of field entries by braces according to
                       `bibtex-field-braces-alist'.
 strings             Replace parts of field entries by string constants
@@ -192,6 +182,17 @@ Space characters in REGEXP will be replaced by \"[ \\t\\n]+\"."
   :type '(repeat (list (repeat (string :tag "field name"))
                        (regexp :tag "From regexp")
                        (regexp :tag "To string constant"))))
+
+(defcustom bibtex-unify-case-function #'identity
+  "Function for unifying case of entry and field names.
+It is called with one argument, the entry or field name."
+  :version "28.1"
+  :type '(choice (const :tag "Same case as in `bibtex-field-alist'" identity)
+		 (const :tag "Downcase" downcase)
+		 (const :tag "Capitalize" capitalize)
+		 (const :tag "Upcase" upcase)
+                 (function :tag "Conversion function"))
+  :safe (lambda (x) (memq x '(upcase downcase capitalize identity))))
 
 (defcustom bibtex-clean-entry-hook nil
   "List of functions to call when entry has been cleaned.
@@ -901,7 +902,8 @@ If nil prefix OPT is always removed."
 (defcustom bibtex-comment-start "@Comment"
   "String starting a BibTeX comment."
   :group 'bibtex
-  :type 'string)
+  :type 'string
+  :safe #'stringp)
 
 (defcustom bibtex-add-entry-hook nil
   "List of functions to call when BibTeX entry has been inserted."
@@ -1230,7 +1232,8 @@ and must return a string (the key to use)."
   "Offset for BibTeX entries.
 Added to the value of all other variables which determine columns."
   :group 'bibtex
-  :type 'integer)
+  :type 'integer
+  :safe #'integerp)
 
 (defcustom bibtex-field-indentation 2
   "Starting column for the name part in BibTeX fields."
@@ -1243,13 +1246,15 @@ Added to the value of all other variables which determine columns."
   "Starting column for the text part in BibTeX fields.
 Should be equal to the space needed for the longest name part."
   :group 'bibtex
-  :type 'integer)
+  :type 'integer
+  :safe #'integerp)
 
 (defcustom bibtex-contline-indentation
   (+ bibtex-text-indentation 1)
   "Starting column for continuation lines of BibTeX fields."
   :group 'bibtex
-  :type 'integer)
+  :type 'integer
+  :safe #'integerp)
 
 (defcustom bibtex-align-at-equal-sign nil
   "If non-nil, align fields at equal sign instead of field text.
@@ -1935,18 +1940,22 @@ If `bibtex-expand-strings' is non-nil, also expand BibTeX strings."
                                     (bibtex-end-of-text-in-field bounds))))
 
 (defun bibtex-text-in-field (field &optional follow-crossref)
-  "Get content of field FIELD of current BibTeX entry.
-Return nil if not found.
+  "Return content of field FIELD of current BibTeX entry or nil if not found.
+FIELD may also be a list of fields that are tried in order.
 If optional arg FOLLOW-CROSSREF is non-nil, follow crossref."
   (save-excursion
-    (let* ((end (if follow-crossref (bibtex-end-of-entry) t))
-           (beg (bibtex-beginning-of-entry)) ; move point
-           (bounds (bibtex-search-forward-field field end)))
+    (let ((end (if (and (not follow-crossref) (stringp field))
+                   t ; try to minimize parsing
+                 (bibtex-end-of-entry)))
+          bounds)
+      (bibtex-beginning-of-entry) ; move point
+      (let ((field (if (stringp field) (list field) field)))
+        (while (and field (not bounds))
+          (setq bounds (bibtex-search-forward-field (pop field) end))))
       (cond (bounds (bibtex-text-in-field-bounds bounds t))
             ((and follow-crossref
-                  (progn (goto-char beg)
-                         (setq bounds (bibtex-search-forward-field
-                                       "\\(OPT\\)?crossref" end))))
+                  (setq bounds (bibtex-search-forward-field
+                                "\\(OPT\\)?crossref" end)))
              (let ((crossref-field (bibtex-text-in-field-bounds bounds t)))
                (if (bibtex-search-crossref crossref-field)
                    ;; Do not pass FOLLOW-CROSSREF because we want
@@ -2357,7 +2366,7 @@ Formats current entry according to variable `bibtex-entry-format'."
                 ;; unify case of entry type
                 (when (memq 'unify-case format)
                   (delete-region beg-type end-type)
-                  (insert (funcall bibtex-unify-case-convert (car entry-list))))
+                  (insert (funcall bibtex-unify-case-function (car entry-list))))
 
                 ;; update left entry delimiter
                 (when (memq 'delimiters format)
@@ -2566,7 +2575,7 @@ Formats current entry according to variable `bibtex-entry-format'."
 			    (curname (buffer-substring beg-name end-name)))
 			(delete-region beg-name end-name)
 			(goto-char beg-name)
-			(insert (funcall bibtex-unify-case-convert
+			(insert (funcall bibtex-unify-case-function
 					 (or fname curname)))))
 
                     ;; update point
@@ -2684,6 +2693,7 @@ is returned unchanged."
 
 (defun bibtex-autokey-get-field (field &optional change-list)
   "Get content of BibTeX field FIELD.  Return empty string if not found.
+FIELD may also be a list of fields that are tried in order.
 Optional arg CHANGE-LIST is a list of substitution patterns that is
 applied to the content of FIELD.  It is an alist with pairs
 \(OLD-REGEXP . NEW-STRING)."
@@ -2752,7 +2762,10 @@ and `bibtex-autokey-names-stretch'."
 
 (defun bibtex-autokey-get-year ()
   "Return year field contents as a string obeying `bibtex-autokey-year-length'."
-  (let ((yearfield (bibtex-autokey-get-field "year")))
+  (let ((yearfield (bibtex-autokey-get-field '("year" "date"))))
+    ;; biblatex date field has format yyyy-mm-dd
+    (if (< 4 (length yearfield))
+        (setq yearfield (substring yearfield 0 4)))
     (substring yearfield (max 0 (- (length yearfield)
                                    bibtex-autokey-year-length)))))
 
@@ -2953,7 +2966,7 @@ for parsing BibTeX keys.  If parsing fails, try to set this variable to nil."
                                          (1+ (match-beginning 3)) (1- (match-end 3)))))
                                (unless (assoc key crossref-keys)
                                  (push (list key) crossref-keys))))
-                            ;; We have probably have a non-bibtex file.
+                            ;; We probably have a non-bibtex file.
                             ((not (match-beginning bibtex-type-in-head))
                              (throw 'userkey nil))
                             ;; only keys of known entries
@@ -3447,15 +3460,10 @@ if that value is non-nil.
                                    bibtex-parse-keys-timeout t
                                    'bibtex-parse-buffers-stealthily)))
   (set (make-local-variable 'paragraph-start) "[ \f\n\t]*$")
-  (set (make-local-variable 'comment-start) bibtex-comment-start)
-  (set (make-local-variable 'comment-start-skip)
-       (concat (regexp-quote bibtex-comment-start) "\\>[ \t]*"))
   (set (make-local-variable 'comment-column) 0)
   (set (make-local-variable 'defun-prompt-regexp) "^[ \t]*@[[:alnum:]]+[ \t]*")
   (set (make-local-variable 'outline-regexp) "[ \t]*@")
   (set (make-local-variable 'fill-paragraph-function) #'bibtex-fill-field)
-  (set (make-local-variable 'fill-prefix)
-       (make-string (+ bibtex-entry-offset bibtex-contline-indentation) ?\s))
   (set (make-local-variable 'font-lock-defaults)
        '(bibtex-font-lock-keywords
          nil t ((?$ . "\"")
@@ -3474,9 +3482,18 @@ if that value is non-nil.
   (set (make-local-variable 'syntax-propertize-function)
        (syntax-propertize-via-font-lock
         bibtex-font-lock-syntactic-keywords))
-  (bibtex-set-dialect nil t)
-  ;; Allow `bibtex-dialect' as a file-local variable.
-  (add-hook 'hack-local-variables-hook #'bibtex-set-dialect nil t))
+  (let ((fun (lambda ()
+               (bibtex-set-dialect)
+               (set (make-local-variable 'comment-start) bibtex-comment-start)
+               (set (make-local-variable 'comment-start-skip)
+                    (concat (regexp-quote bibtex-comment-start) "\\>[ \t]*"))
+               (set (make-local-variable 'fill-prefix)
+                    (make-string (+ bibtex-entry-offset
+                                    bibtex-contline-indentation)
+                                 ?\s)))))
+    (if (and buffer-file-name enable-local-variables)
+        (add-hook 'hack-local-variables-hook fun nil t)
+      (funcall fun))))
 
 (defun bibtex-entry-alist (dialect)
   "Return entry-alist for DIALECT."
@@ -3618,7 +3635,7 @@ and `bibtex-user-optional-fields'."
             optional (nth 4 e-list)))
     (if bibtex-include-OPTkey
         (push (list "key"
-                    "Used for reference key creation if author and editor fields are missing"
+                    "Crossref key"
                     (if (or (stringp bibtex-include-OPTkey)
                             (functionp bibtex-include-OPTkey))
                         bibtex-include-OPTkey))
