@@ -1264,7 +1264,6 @@ that uses or sets the mark."
   ;; minibuffer, this is at the end of the prompt.
   (goto-char (minibuffer-prompt-end)))
 
-
 ;; Counting lines, one way or another.
 
 (defvar goto-line-history nil
@@ -1276,15 +1275,8 @@ that uses or sets the mark."
   (if (and current-prefix-arg (not (consp current-prefix-arg)))
       (list (prefix-numeric-value current-prefix-arg))
     ;; Look for a default, a number in the buffer at point.
-    (let* ((default
-             (save-excursion
-               (skip-chars-backward "0-9")
-               (if (looking-at "[0-9]")
-                   (string-to-number
-                    (buffer-substring-no-properties
-                     (point)
-                     (progn (skip-chars-forward "0-9")
-                            (point)))))))
+    (let* ((number (number-at-point))
+           (default (and (natnump number) number))
            ;; Decide if we're switching buffers.
            (buffer
             (if (consp current-prefix-arg)
@@ -2200,7 +2192,8 @@ in this use of the minibuffer.")
   "Minibuffer history variables for which matching should ignore case.
 If a history variable is a member of this list, then the
 \\[previous-matching-history-element] and \\[next-matching-history-element]\
- commands ignore case when searching it, regardless of `case-fold-search'."
+ commands ignore case when searching it,
+regardless of `case-fold-search'."
   :type '(repeat variable)
   :group 'minibuffer)
 
@@ -4306,8 +4299,7 @@ characters."
 (defun shell-command-to-string (command)
   "Execute shell command COMMAND and return its output as a string."
   (with-output-to-string
-    (with-current-buffer
-      standard-output
+    (with-current-buffer standard-output
       (shell-command command t))))
 
 (defun process-file (program &optional infile buffer display &rest args)
