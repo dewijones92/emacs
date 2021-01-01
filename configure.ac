@@ -4,7 +4,7 @@ dnl	autoconf
 dnl in the directory containing this script.
 dnl If you changed any AC_DEFINES, also run autoheader.
 dnl
-dnl Copyright (C) 1994-1996, 1999-2020 Free Software Foundation, Inc.
+dnl Copyright (C) 1994-1996, 1999-2021 Free Software Foundation, Inc.
 dnl
 dnl  This file is part of GNU Emacs.
 dnl
@@ -5215,7 +5215,7 @@ fi
 
 version=$PACKAGE_VERSION
 
-copyright="Copyright (C) 2020 Free Software Foundation, Inc."
+copyright="Copyright (C) 2021 Free Software Foundation, Inc."
 AC_DEFINE_UNQUOTED(COPYRIGHT, ["$copyright"],
   [Short copyright string for this version of Emacs.])
 AC_SUBST(copyright)
@@ -5589,7 +5589,7 @@ AC_SUBST(WINDOW_SYSTEM_OBJ)
 
 AH_TOP([/* GNU Emacs site configuration template file.
 
-Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2020
+Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2021
   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -5877,6 +5877,12 @@ if test $AUTO_DEPEND = yes; then
    for dir in $AUTODEPEND_PARENTS; do
      AS_MKDIR_P([$dir/deps])
    done
+fi
+if $gl_gnulib_enabled_scratch_buffer; then
+  AS_MKDIR_P([lib/malloc])
+  if test $AUTO_DEPEND = yes; then
+    AS_MKDIR_P([lib/deps/malloc])
+  fi
 fi
 
 AC_OUTPUT

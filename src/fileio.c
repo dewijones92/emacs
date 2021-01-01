@@ -1,6 +1,6 @@
 /* File IO for GNU Emacs.
 
-Copyright (C) 1985-1988, 1993-2020 Free Software Foundation, Inc.
+Copyright (C) 1985-1988, 1993-2021 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -3050,7 +3050,6 @@ file_accessible_directory_p (Lisp_Object file)
   ptrdiff_t len = SBYTES (file);
   char const *dir;
   bool ok;
-  int saved_errno;
   USE_SAFE_ALLOCA;
 
   /* Normally a file "FOO" is an accessible directory if "FOO/." exists.
@@ -3075,9 +3074,7 @@ file_accessible_directory_p (Lisp_Object file)
     }
 
   ok = file_access_p (dir, F_OK);
-  saved_errno = errno;
   SAFE_FREE ();
-  errno = saved_errno;
   return ok;
 #endif	/* !DOS_NT */
 }

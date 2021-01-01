@@ -1,6 +1,6 @@
 ;;; memory-report.el --- Short function summaries  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
 
 ;; Keywords: lisp, help
 
@@ -48,6 +48,7 @@ by counted more than once."
   (message "Gathering data...")
   (let ((reports (append (memory-report--garbage-collect)
                          (memory-report--image-cache)
+                         (memory-report--symbol-plist)
                          (memory-report--buffers)
                          (memory-report--largest-variables)))
         (inhibit-read-only t)
@@ -159,6 +160,17 @@ by counted more than once."
                            "\n"))
        (buffer-string)))))
 
+(defun memory-report--symbol-plist ()
+  (let ((counted (make-hash-table :test #'eq))
+        (total 0))
+    (mapatoms
+     (lambda (symbol)
+       (cl-incf total (memory-report--object-size
+                       counted (symbol-plist symbol))))
+     obarray)
+    (list
+     (cons "Memory Used By Symbol Plists" total))))
+
 (defun memory-report--object-size (counted value)
   (if (gethash value counted)
       0
@@ -204,7 +216,9 @@ by counted more than once."
         (cl-incf total (memory-report--object-size counted (car value))))
       (if (cdr value)
           (if (consp (cdr value))
-              (setq value (cdr value))
+              (if (gethash (cdr value) counted)
+                  (setq value nil)
+                (setq value (cdr value)))
             (cl-incf total (memory-report--object-size counted (cdr value)))
             (setq value nil))
         (setq value nil)))

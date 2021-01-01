@@ -1,6 +1,6 @@
 ;;; cc-mode.el --- major mode for editing C and similar languages
 
-;; Copyright (C) 1985, 1987, 1992-2020 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2021 Free Software Foundation, Inc.
 
 ;; Authors:    2003- Alan Mackenzie
 ;;             1998- Martin Stjernholm
@@ -113,6 +113,7 @@
 ;; Silence the compiler.
 (cc-bytecomp-defvar adaptive-fill-first-line-regexp) ; Emacs
 (cc-bytecomp-defun run-mode-hooks)	; Emacs 21.1
+(cc-bytecomp-defvar awk-mode-syntax-table)
 
 ;; We set this variable during mode init, yet we don't require
 ;; font-lock.
@@ -639,6 +640,8 @@ that requires a literal mode spec at compile time."
   ;; doesn't work with filladapt but it's better than nothing.
   (set (make-local-variable 'fill-paragraph-function) 'c-fill-paragraph)
 
+  ;; Initialize the cache for `c-looking-at-or-maybe-in-bracelist'.
+  (setq c-laomib-cache nil)
   ;; Initialize the three literal sub-caches.
   (c-truncate-lit-pos-cache 1)
   ;; Initialize the cache of brace pairs, and opening braces/brackets/parens.
@@ -728,8 +731,8 @@ that requires a literal mode spec at compile time."
 ;;   ;; Put submode indicators onto minor-mode-alist, but only once.
 ;;   (or (assq 'c-submode-indicators minor-mode-alist)
 ;;       (setq minor-mode-alist
-;; 	    (cons '(c-submode-indicators c-submode-indicators)
-;; 		  minor-mode-alist)))
+;;	    (cons '(c-submode-indicators c-submode-indicators)
+;;		  minor-mode-alist)))
   (c-update-modeline)
 
   ;; Install the functions that ensure that various internal caches
@@ -1255,7 +1258,7 @@ Note that the style variables are always made local to the buffer."
   ;; Set both the syntax-table and the c-fl-syn-tab text properties at POS to
   ;; VALUE (which should not be nil).
   ;; `(let ((-pos- ,pos)
-  ;; 	 (-value- ,value))
+  ;;	 (-value- ,value))
   (c-put-char-property pos 'syntax-table value)
   (c-put-char-property pos 'c-fl-syn-tab value)
   (cond
@@ -1485,7 +1488,7 @@ Note that the style variables are always made local to the buffer."
 	   ((and
 	     (c-is-escaped end)
 	     (or (eq beg end) ; .... by inserting stuff between \ and \n?
-	      	 (c-will-be-unescaped beg))) ;  ... by removing an odd number of \s?
+		 (c-will-be-unescaped beg))) ;  ... by removing an odd number of \s?
 	    (goto-char (1+ end))) ; To after the NL which is being unescaped.
 	   (t
 	    (goto-char end)))
@@ -2054,13 +2057,19 @@ Note that this is a strict tail, so won't match, e.g. \"0x....\".")
 		(if c-get-state-before-change-functions
 		    (mapc (lambda (fn)
 			    (funcall fn beg end))
-			  c-get-state-before-change-functions))))
+			  c-get-state-before-change-functions))
+
+		(c-laomib-invalidate-cache beg end)))
 	  (c-clear-string-fences))))
     (c-truncate-lit-pos-cache beg)
     ;; The following must be done here rather than in `c-after-change'
     ;; because newly inserted parens would foul up the invalidation
     ;; algorithm.
-    (c-invalidate-state-cache beg)))
+    (c-invalidate-state-cache beg)
+    ;; The following must happen after the previous, which likely alters
+    ;; the macro cache.
+    (when c-opt-cpp-symbol
+      (c-invalidate-macro-cache beg end))))
 
 (defvar c-in-after-change-fontification nil)
 (make-variable-buffer-local 'c-in-after-change-fontification)
@@ -2205,7 +2214,8 @@ Note that this is a strict tail, so won't match, e.g. \"0x....\".")
 	old-pos
 	(new-pos pos)
 	capture-opener
-	bod-lim bo-decl)
+	bod-lim bo-decl
+	paren-state containing-brace)
     (goto-char (c-point 'bol new-pos))
     (unless lit-start
       (setq bod-lim (c-determine-limit 500))
@@ -2224,12 +2234,16 @@ Note that this is a strict tail, so won't match, e.g. \"0x....\".")
 	   (setq old-pos (point))
 	   (let (pseudo)
 	     (while
-		 (progn
-		   (c-syntactic-skip-backward "^;{}" bod-lim t)
-		   (and (eq (char-before) ?})
-			(save-excursion
-			  (backward-char)
-			  (setq pseudo (c-cheap-inside-bracelist-p (c-parse-state))))))
+		 (and
+		  ;; N.B. `c-syntactic-skip-backward' doesn't check (> (point)
+		  ;; lim) and can loop if that's not the case.
+		  (> (point) bod-lim)
+		  (progn
+		    (c-syntactic-skip-backward "^;{}" bod-lim t)
+		    (and (eq (char-before) ?})
+			 (save-excursion
+			   (backward-char)
+			   (setq pseudo (c-cheap-inside-bracelist-p (c-parse-state)))))))
 	       (goto-char pseudo))
 	     t)
 	   (> (point) bod-lim)
@@ -2262,7 +2276,14 @@ Note that this is a strict tail, so won't match, e.g. \"0x....\".")
 		      (and (eq (char-before) ?{)
 			   (save-excursion
 			     (backward-char)
-			     (consp (c-looking-at-or-maybe-in-bracelist))))
+			     (setq paren-state (c-parse-state))
+			     (while
+				 (and
+				  (setq containing-brace
+					(c-pull-open-brace paren-state))
+				  (not (eq (char-after containing-brace) ?{))))
+			     (consp (c-looking-at-or-maybe-in-bracelist
+				     containing-brace containing-brace))))
 		      )))
 	   (not (bobp)))
 	(backward-char))		; back over (, [, <.
