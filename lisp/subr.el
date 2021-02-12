@@ -995,6 +995,22 @@ a menu, so this function is not useful for non-menu keymaps."
 	    (setq inserted t)))
       (setq tail (cdr tail)))))
 
+(defun define-prefix-command (command &optional mapvar name)
+  "Define COMMAND as a prefix command.  COMMAND should be a symbol.
+A new sparse keymap is stored as COMMAND's function definition and its
+value.
+This prepares COMMAND for use as a prefix key's binding.
+If a second optional argument MAPVAR is given, it should be a symbol.
+The map is then stored as MAPVAR's value instead of as COMMAND's
+value; but COMMAND is still defined as a function.
+The third optional argument NAME, if given, supplies a menu name
+string for the map.  This is required to use the keymap as a menu.
+This function returns COMMAND."
+  (let ((map (make-sparse-keymap name)))
+    (fset command map)
+    (set (or mapvar command) map)
+    command))
+
 (defun map-keymap-sorted (function keymap)
   "Implement `map-keymap' with sorting.
 Don't call this function; it is for internal use only."
@@ -1162,6 +1178,30 @@ KEY is a string or vector representing a sequence of keystrokes."
   (if (current-local-map)
       (local-set-key key nil))
   nil)
+
+(defun local-key-binding (keys &optional accept-default)
+  "Return the binding for command KEYS in current local keymap only.
+KEYS is a string or vector, a sequence of keystrokes.
+The binding is probably a symbol with a function definition.
+
+If optional argument ACCEPT-DEFAULT is non-nil, recognize default
+bindings; see the description of `lookup-key' for more details
+about this."
+  (let ((map (current-local-map)))
+    (when map (lookup-key map keys accept-default))))
+
+(defun global-key-binding (keys &optional accept-default)
+  "Return the binding for command KEYS in current global keymap only.
+KEYS is a string or vector, a sequence of keystrokes.
+The binding is probably a symbol with a function definition.
+This function's return values are the same as those of `lookup-key'
+\(which see).
+
+If optional argument ACCEPT-DEFAULT is non-nil, recognize default
+bindings; see the description of `lookup-key' for more details
+about this."
+  (lookup-key (current-global-map) keys accept-default))
+
 
 ;;;; substitute-key-definition and its subroutines.
 
@@ -1239,35 +1279,85 @@ in a cleaner way with command remapping, like this:
 
 ;;;; The global keymap tree.
 
-;; global-map, esc-map, and ctl-x-map have their values set up in
-;; keymap.c; we just give them docstrings here.
-
-(defvar global-map nil
-  "Default global keymap mapping Emacs keyboard input into commands.
-The value is a keymap that is usually (but not necessarily) Emacs's
-global map.")
-
-(defvar esc-map nil
+(defvar esc-map
+  (let ((map (make-keymap)))
+    (define-key map "u" #'upcase-word)
+    (define-key map "l" #'downcase-word)
+    (define-key map "c" #'capitalize-word)
+    (define-key map "x" #'execute-extended-command)
+    map)
   "Default keymap for ESC (meta) commands.
 The normal global definition of the character ESC indirects to this keymap.")
-
-(defvar ctl-x-map nil
-  "Default keymap for C-x commands.
-The normal global definition of the character C-x indirects to this keymap.")
+(fset 'ESC-prefix esc-map)
+(make-obsolete 'ESC-prefix 'esc-map "28.1")
 
 (defvar ctl-x-4-map (make-sparse-keymap)
   "Keymap for subcommands of C-x 4.")
 (defalias 'ctl-x-4-prefix ctl-x-4-map)
-(define-key ctl-x-map "4" 'ctl-x-4-prefix)
 
 (defvar ctl-x-5-map (make-sparse-keymap)
   "Keymap for frame commands.")
 (defalias 'ctl-x-5-prefix ctl-x-5-map)
-(define-key ctl-x-map "5" 'ctl-x-5-prefix)
 
 (defvar tab-prefix-map (make-sparse-keymap)
   "Keymap for tab-bar related commands.")
-(define-key ctl-x-map "t" tab-prefix-map)
+
+(defvar ctl-x-map
+  (let ((map (make-keymap)))
+    (define-key map "4" 'ctl-x-4-prefix)
+    (define-key map "5" 'ctl-x-5-prefix)
+    (define-key map "t" tab-prefix-map)
+
+    (define-key map "b" #'switch-to-buffer)
+    (define-key map "k" #'kill-buffer)
+    (define-key map "\C-u" #'upcase-region)   (put 'upcase-region   'disabled t)
+    (define-key map "\C-l" #'downcase-region) (put 'downcase-region 'disabled t)
+    (define-key map "<" #'scroll-left)
+    (define-key map ">" #'scroll-right)
+    map)
+  "Default keymap for C-x commands.
+The normal global definition of the character C-x indirects to this keymap.")
+(fset 'Control-X-prefix ctl-x-map)
+(make-obsolete 'Control-X-prefix 'ctl-x-map "28.1")
+
+(defvar global-map
+  (let ((map (make-keymap)))
+    (define-key map "\C-[" 'ESC-prefix)
+    (define-key map "\C-x" 'Control-X-prefix)
+
+    (define-key map "\C-i" #'self-insert-command)
+    (let* ((vec1 (make-vector 1 nil))
+           (f (lambda (from to)
+                (while (< from to)
+                  (aset vec1 0 from)
+                  (define-key map vec1 #'self-insert-command)
+                  (setq from (1+ from))))))
+      (funcall f #o040 #o0177)
+      (when (eq system-type 'ms-dos)      ;FIXME: Why?
+        (funcall f #o0200 #o0240))
+      (funcall f #o0240 #o0400))
+
+    (define-key map "\C-a" #'beginning-of-line)
+    (define-key map "\C-b" #'backward-char)
+    (define-key map "\C-e" #'end-of-line)
+    (define-key map "\C-f" #'forward-char)
+
+    (define-key map "\C-z"     #'suspend-emacs) ;FIXME: Re-bound later!
+    (define-key map "\C-x\C-z" #'suspend-emacs) ;FIXME: Re-bound later!
+
+    (define-key map "\C-v"    #'scroll-up-command)
+    (define-key map "\M-v"    #'scroll-down-command)
+    (define-key map "\M-\C-v" #'scroll-other-window)
+
+    (define-key map "\M-\C-c" #'exit-recursive-edit)
+    (define-key map "\C-]"    #'abort-recursive-edit)
+    map)
+  "Default global keymap mapping Emacs keyboard input into commands.
+The value is a keymap that is usually (but not necessarily) Emacs's
+global map.
+
+See also `current-global-map'.")
+(use-global-map global-map)
 
 
 ;;;; Event manipulation functions.
@@ -1565,6 +1655,12 @@ The return value has the form (WIDTH . HEIGHT).  POSITION should
 be a list of the form returned by `event-start' and `event-end'."
   (nth 9 position))
 
+(defun values--store-value (value)
+  "Store VALUE in the obsolete `values' variable."
+  (with-suppressed-warnings ((obsolete values))
+    (push value values))
+  value)
+
 
 ;;;; Obsolescent names for functions.
 
@@ -1604,13 +1700,13 @@ be a list of the form returned by `event-start' and `event-end'."
 
 ;;;; Obsolescence declarations for variables, and aliases.
 
-(make-obsolete-variable 'define-key-rebound-commands nil "23.2")
 (make-obsolete-variable 'redisplay-end-trigger-functions 'jit-lock-register "23.1")
 (make-obsolete-variable 'deferred-action-list 'post-command-hook "24.1")
 (make-obsolete-variable 'deferred-action-function 'post-command-hook "24.1")
 (make-obsolete-variable 'redisplay-dont-pause nil "24.5")
 (make-obsolete 'window-redisplay-end-trigger nil "23.1")
 (make-obsolete 'set-window-redisplay-end-trigger nil "23.1")
+(make-obsolete-variable 'operating-system-release nil "28.1")
 
 (make-obsolete 'run-window-configuration-change-hook nil "27.1")
 
@@ -1630,6 +1726,10 @@ be a list of the form returned by `event-start' and `event-end'."
   'inhibit-null-byte-detection "28.1")
 (make-obsolete-variable 'load-dangerous-libraries
                         "no longer used." "27.1")
+
+;; We can't actually make `values' obsolete, because that will result
+;; in warnings when using `values' in let-bindings.
+;;(make-obsolete-variable 'values "no longer used" "28.1")
 
 
 ;;;; Alternate names for functions - these are not being phased out.
@@ -1749,7 +1849,11 @@ unless HOOK has both local and global functions).  If multiple
 functions have the same representation under `princ', the first
 one will be removed."
   (interactive
-   (let* ((hook (intern (completing-read "Hook variable: " obarray #'boundp t)))
+   (let* ((default (and (symbolp (variable-at-point))
+                        (symbol-name (variable-at-point))))
+          (hook (intern (completing-read
+                         (format-prompt "Hook variable" default)
+                         obarray #'boundp t nil nil default)))
           (local
            (and
             (local-variable-p hook)
@@ -1806,9 +1910,33 @@ all symbols are bound before any of the VALUEFORMs are evalled."
   ;; As a special-form, we could implement it more efficiently (and cleanly,
   ;; making the vars actually unbound during evaluation of the binders).
   (declare (debug let) (indent 1))
-  `(let ,(mapcar #'car binders)
-     ,@(mapcar (lambda (binder) `(setq ,@binder)) binders)
-     ,@body))
+  ;; Use plain `let*' for the non-recursive definitions.
+  ;; This only handles the case where the first few definitions are not
+  ;; recursive.  Nothing as fancy as an SCC analysis.
+  (let ((seqbinds nil))
+    ;; Our args haven't yet been macro-expanded, so `macroexp--fgrep'
+    ;; may fail to see references that will be introduced later by
+    ;; macroexpansion.  We could call `macroexpand-all' to avoid that,
+    ;; but in order to avoid that, we instead check to see if the binders
+    ;; appear in the macroexp environment, since that's how references can be
+    ;; introduced later on.
+    (unless (macroexp--fgrep binders macroexpand-all-environment)
+      (while (and binders
+                  (null (macroexp--fgrep binders (nth 1 (car binders)))))
+        (push (pop binders) seqbinds)))
+    (let ((nbody (if (null binders)
+                     (macroexp-progn body)
+                   `(let ,(mapcar #'car binders)
+                      ,@(mapcar (lambda (binder) `(setq ,@binder)) binders)
+                      ,@body))))
+      (cond
+       ;; All bindings are recursive.
+       ((null seqbinds) nbody)
+       ;; Special case for trivial uses.
+       ((and (symbolp nbody) (null (cdr seqbinds)) (eq nbody (caar seqbinds)))
+        (nth 1 (car seqbinds)))
+       ;; General case.
+       (t `(let* ,(nreverse seqbinds) ,nbody))))))
 
 (defmacro dlet (binders &rest body)
   "Like `let*' but using dynamic scoping."
@@ -2110,9 +2238,13 @@ Affects only hooks run in the current buffer."
 ;; PUBLIC: find if the current mode derives from another.
 
 (defun provided-mode-derived-p (mode &rest modes)
-  "Non-nil if MODE is derived from one of MODES or their aliases.
+  "Non-nil if MODE is derived from one of MODES.
 Uses the `derived-mode-parent' property of the symbol to trace backwards.
 If you just want to check `major-mode', use `derived-mode-p'."
+  ;; If MODE is an alias, then look up the real mode function first.
+  (when-let ((alias (symbol-function mode)))
+    (when (symbolp alias)
+      (setq mode alias)))
   (while
       (and
        (not (memq mode modes))
@@ -2451,23 +2583,52 @@ It can be retrieved with `(process-get PROCESS PROPNAME)'."
 
 ;;;; Input and display facilities.
 
-(defconst read-key-empty-map (make-sparse-keymap))
+;; The following maps are used by `read-key' to remove all key
+;; bindings while calling `read-key-sequence'.  This way the keys
+;; returned are independent of the key binding state.
+
+(defconst read-key-empty-map (make-sparse-keymap)
+  "Used internally by `read-key'.")
+
+(defconst read-key-full-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [t] 'dummy)
+
+    ;; ESC needs to be unbound so that escape sequences in
+    ;; `input-decode-map' are still processed by `read-key-sequence'.
+    (define-key map [?\e] nil)
+    map)
+  "Used internally by `read-key'.")
 
 (defvar read-key-delay 0.01) ;Fast enough for 100Hz repeat rate, hopefully.
 
-(defun read-key (&optional prompt)
+(defun read-key (&optional prompt disable-fallbacks)
   "Read a key from the keyboard.
 Contrary to `read-event' this will not return a raw event but instead will
 obey the input decoding and translations usually done by `read-key-sequence'.
 So escape sequences and keyboard encoding are taken into account.
 When there's an ambiguity because the key looks like the prefix of
-some sort of escape sequence, the ambiguity is resolved via `read-key-delay'."
+some sort of escape sequence, the ambiguity is resolved via `read-key-delay'.
+
+If the optional argument PROMPT is non-nil, display that as a
+prompt.
+
+If the optional argument DISABLE-FALLBACKS is non-nil, all
+unbound fallbacks usually done by `read-key-sequence' are
+disabled such as discarding mouse down events.  This is generally
+what you want as `read-key' temporarily removes all bindings
+while calling `read-key-sequence'.  If nil or unspecified, the
+only unbound fallback disabled is downcasing of the last event."
   ;; This overriding-terminal-local-map binding also happens to
   ;; disable quail's input methods, so although read-key-sequence
   ;; always inherits the input method, in practice read-key does not
   ;; inherit the input method (at least not if it's based on quail).
   (let ((overriding-terminal-local-map nil)
-	(overriding-local-map read-key-empty-map)
+	(overriding-local-map
+         ;; FIXME: Audit existing uses of `read-key' to see if they
+         ;; should always specify disable-fallbacks to be more in line
+         ;; with `read-event'.
+         (if disable-fallbacks read-key-full-map read-key-empty-map))
         (echo-keystrokes 0)
 	(old-global-map (current-global-map))
         (timer (run-with-idle-timer
@@ -2520,6 +2681,23 @@ some sort of escape sequence, the ambiguity is resolved via `read-key-delay'."
       ;; (bug#22714).  So, let's mimic the behavior of `read-event'.
       (message nil)
       (use-global-map old-global-map))))
+
+;; FIXME: Once there's a safe way to transition away from read-event,
+;; callers to this function should be updated to that way and this
+;; function should be deleted.
+(defun read--potential-mouse-event ()
+    "Read an event that might be a mouse event.
+
+This function exists for backward compatibility in code packaged
+with Emacs.  Do not call it directly in your own packages."
+    ;; `xterm-mouse-mode' events must go through `read-key' as they
+    ;; are decoded via `input-decode-map'.
+    (if xterm-mouse-mode
+        (read-key nil
+                  ;; Normally `read-key' discards all mouse button
+                  ;; down events.  However, we want them here.
+                  t)
+      (read-event)))
 
 (defvar read-passwd-map
   ;; BEWARE: `defconst' would purecopy it, breaking the sharing with
@@ -2801,8 +2979,6 @@ Also discard all previous input in the minibuffer."
     (minibuffer-message "Wrong answer")
     (sit-for 2)))
 
-(defvar empty-history)
-
 (defun read-char-from-minibuffer (prompt &optional chars history)
   "Read a character from the minibuffer, prompting for it with PROMPT.
 Like `read-char', but uses the minibuffer to read and return a character.
@@ -2817,6 +2993,7 @@ while calling this function, then pressing `help-char'
 causes it to evaluate `help-form' and display the result.
 There is no need to explicitly add `help-char' to CHARS;
 `help-char' is bound automatically to `help-form-show'."
+  (defvar empty-history)
   (let* ((empty-history '())
          (map (if (consp chars)
                   (or (gethash (list help-form (cons help-char chars))
@@ -2929,8 +3106,6 @@ Also discard all previous input in the minibuffer."
   "Prefer `read-key' when answering a \"y or n\" question by `y-or-n-p'.
 Otherwise, use the minibuffer.")
 
-(defvar empty-history)
-
 (defun y-or-n-p (prompt)
   "Ask user a \"y or n\" question.
 Return t if answer is \"y\" and nil if it is \"n\".
@@ -3026,6 +3201,7 @@ is nil and `use-dialog-box' is non-nil."
         (discard-input)))
      (t
       (setq prompt (funcall padded prompt))
+      (defvar empty-history)
       (let* ((empty-history '())
              (enable-recursive-minibuffers t)
              (msg help-form)
@@ -4154,6 +4330,8 @@ the specified region.  It must not change
 Additionally, the buffer modifications of BODY are recorded on
 the buffer's undo list as a single (apply ...) entry containing
 the function `undo--wrap-and-run-primitive-undo'."
+  (if (markerp beg) (setq beg (marker-position beg)))
+  (if (markerp end) (setq end (marker-position end)))
   (let ((old-bul buffer-undo-list)
 	(end-marker (copy-marker end t))
 	result)
@@ -4759,7 +4937,9 @@ file, FORM is evaluated immediately after the provide statement.
 Usually FILE is just a library name like \"font-lock\" or a feature name
 like `font-lock'.
 
-This function makes or adds to an entry on `after-load-alist'."
+This function makes or adds to an entry on `after-load-alist'.
+
+See also `with-eval-after-load'."
   (declare (compiler-macro
             (lambda (whole)
               (if (eq 'quote (car-safe form))

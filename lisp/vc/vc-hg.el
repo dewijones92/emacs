@@ -1166,7 +1166,8 @@ hg binary."
 ;; Modeled after the similar function in vc-bzr.el
 (defun vc-hg-rename-file (old new)
   "Rename file from OLD to NEW using `hg mv'."
-  (vc-hg-command nil 0 new "mv" old))
+  (vc-hg-command nil 0 (expand-file-name new) "mv"
+                 (expand-file-name old)))
 
 (defun vc-hg-register (files &optional _comment)
   "Register FILES under hg. COMMENT is ignored."
@@ -1402,8 +1403,8 @@ This runs the command \"hg summary\"."
                              (cons (capitalize (match-string 1)) (match-string 2))
                            (cons "" (buffer-substring (point) (line-end-position))))))
               (concat
-               (propertize (format "%-11s: " (car entry)) 'face 'font-lock-type-face)
-               (propertize (cdr entry) 'face 'font-lock-variable-name-face)))
+               (propertize (format "%-11s: " (car entry)) 'face 'vc-dir-header)
+               (propertize (cdr entry) 'face 'vc-dir-header-value)))
             result)
            (forward-line))
          (nreverse result))

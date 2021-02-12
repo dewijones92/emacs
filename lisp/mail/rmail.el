@@ -161,13 +161,6 @@ its character representation and its display representation.")
   :version "21.1")
 
 ;;;###autoload
-(put 'rmail-spool-directory 'standard-value
-     '((cond ((file-exists-p "/var/mail") "/var/mail/")
-	     ((file-exists-p "/var/spool/mail") "/var/spool/mail/")
-	     ((memq system-type '(hpux usg-unix-v)) "/usr/mail/")
-	     (t "/usr/spool/mail/"))))
-
-;;;###autoload
 (defcustom rmail-spool-directory
   (purecopy
   (cond ((file-exists-p "/var/mail")
@@ -181,11 +174,9 @@ its character representation and its display representation.")
 	(t "/usr/spool/mail/")))
   "Name of directory used by system mailer for delivering new mail.
 Its name should end with a slash."
-  :initialize 'custom-initialize-delay
+  :initialize #'custom-initialize-delay
   :type 'directory
   :group 'rmail)
-
-;;;###autoload(custom-initialize-delay 'rmail-spool-directory nil)
 
 (defcustom rmail-movemail-program nil
   "If non-nil, the file name of the `movemail' program."
@@ -629,14 +620,12 @@ Element N specifies the summary line for message N+1.")
 
 ;; Rmail buffer swapping variables.
 
-(defvar rmail-buffer-swapped nil
+(defvar-local rmail-buffer-swapped nil
   "If non-nil, `rmail-buffer' is swapped with `rmail-view-buffer'.")
-(make-variable-buffer-local 'rmail-buffer-swapped)
 (put 'rmail-buffer-swapped 'permanent-local t)
 
-(defvar rmail-view-buffer nil
+(defvar-local rmail-view-buffer nil
   "Buffer which holds RMAIL message for MIME displaying.")
-(make-variable-buffer-local 'rmail-view-buffer)
 (put 'rmail-view-buffer 'permanent-local t)
 
 ;; `Sticky' default variables.
@@ -2732,6 +2721,12 @@ See also `unrmail-mbox-format'."
   :version "24.4"
   :group 'rmail-files)
 
+(defcustom rmail-show-message-set-modified nil
+  "If non-nil, displaying an unseen message marks the Rmail buffer as modified."
+  :type 'boolean
+  :group 'rmail
+  :version "28.1")
+
 (defun rmail-show-message-1 (&optional msg)
   "Show message MSG (default: current message) using `rmail-view-buffer'.
 Return text to display in the minibuffer if MSG is out of
@@ -2759,6 +2754,8 @@ The current mail message becomes the message displayed."
 	;; Mark the message as seen, but preserve buffer modified flag.
 	(let ((modiff (buffer-modified-p)))
 	  (rmail-set-attribute rmail-unseen-attr-index nil)
+          (and rmail-show-message-set-modified
+               (setq modiff t))
 	  (unless modiff
 	    (restore-buffer-modified-p modiff)))
 	;; bracket the message in the mail

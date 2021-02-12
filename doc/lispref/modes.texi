@@ -1730,6 +1730,11 @@ and @var{set} is a function of one argument (a state) that sets it.
 @item :after-hook @var{after-hook}
 This defines a single Lisp form which is evaluated after the mode hooks
 have run.  It should not be quoted.
+
+@item :interactive @var{value}
+Minor modes are interactive commands by default.  If @var{value} is
+@code{nil}, this is inhibited.  If @var{value} is a list of symbols,
+it's used to say which major modes this minor mode is useful in.
 @end table
 
 Any other keyword arguments are passed directly to the
@@ -1825,6 +1830,11 @@ starts, for example by providing a @code{:require} keyword.
 
 Use @code{:group @var{group}} in @var{keyword-args} to specify the
 custom group for the mode variable of the global minor mode.
+
+By default, the buffer-local minor mode variable that says whether the
+mode is switched on or off is the same as the name of the mode itself.
+Use @code{:variable @var{variable}} if that's not the case--some minor
+modes use a different variable to store this state information.
 
 Generally speaking, when you define a globalized minor mode, you should
 also define a non-globalized version, so that people can use (or
@@ -4241,7 +4251,7 @@ Here is an example of an indentation function:
     (`(:elem . basic) sample-indent-basic)
     (`(,_ . ",") (smie-rule-separator kind))
     (`(:after . ":=") sample-indent-basic)
-    (`(:before . ,(or `"begin" `"(" `"@{")))
+    (`(:before . ,(or `"begin" `"(" `"@{"))
      (if (smie-rule-hanging-p) (smie-rule-parent)))
     (`(:before . "if")
      (and (not (smie-rule-bolp)) (smie-rule-prev-p "else")

@@ -1478,8 +1478,8 @@ struct Lisp_String
   {
     struct
     {
-      ptrdiff_t size;
-      ptrdiff_t size_byte;
+      ptrdiff_t size;           /* MSB is used as the markbit.  */
+      ptrdiff_t size_byte;      /* Set to -1 for unibyte strings.  */
       INTERVAL intervals;	/* Text properties in this string.  */
       unsigned char *data;
     } s;
@@ -3561,7 +3561,6 @@ extern void swap_in_global_binding (struct Lisp_Symbol *);
 
 /* Defined in cmds.c */
 extern void syms_of_cmds (void);
-extern void keys_of_cmds (void);
 
 /* Defined in coding.c.  */
 extern Lisp_Object detect_coding_system (const unsigned char *, ptrdiff_t,
@@ -3735,6 +3734,7 @@ extern void message_log_maybe_newline (void);
 extern void update_echo_area (void);
 extern void truncate_echo_area (ptrdiff_t);
 extern void redisplay (void);
+extern ptrdiff_t count_lines (ptrdiff_t start_byte, ptrdiff_t end_byte);
 
 void set_frame_cursor_types (struct frame *, Lisp_Object);
 extern void syms_of_xdisp (void);
@@ -4091,6 +4091,7 @@ intern_c_string (const char *str)
 }
 
 /* Defined in eval.c.  */
+extern EMACS_INT minibuffer_quit_level;
 extern Lisp_Object Vautoload_queue;
 extern Lisp_Object Vrun_hooks;
 extern Lisp_Object Vsignaling_function;
@@ -4262,7 +4263,6 @@ extern Lisp_Object get_truename_buffer (Lisp_Object);
 extern void init_buffer_once (void);
 extern void init_buffer (void);
 extern void syms_of_buffer (void);
-extern void keys_of_buffer (void);
 
 /* Defined in marker.c.  */
 
@@ -4348,9 +4348,12 @@ extern Lisp_Object Vminibuffer_list;
 extern Lisp_Object last_minibuf_string;
 extern void move_minibuffer_onto_frame (void);
 extern bool is_minibuffer (EMACS_INT, Lisp_Object);
+extern EMACS_INT this_minibuffer_depth (Lisp_Object);
+extern EMACS_INT minibuf_level;
 extern Lisp_Object get_minibuffer (EMACS_INT);
 extern void init_minibuf_once (void);
 extern void syms_of_minibuf (void);
+extern void barf_if_interaction_inhibited (void);
 
 /* Defined in callint.c.  */
 
@@ -4359,7 +4362,6 @@ extern void syms_of_callint (void);
 /* Defined in casefiddle.c.  */
 
 extern void syms_of_casefiddle (void);
-extern void keys_of_casefiddle (void);
 
 /* Defined in casetab.c.  */
 
@@ -4368,6 +4370,7 @@ extern void syms_of_casetab (void);
 
 /* Defined in keyboard.c.  */
 
+extern EMACS_INT command_loop_level;
 extern Lisp_Object echo_message_buffer;
 extern struct kboard *echo_kboard;
 extern void cancel_echoing (void);
@@ -4498,8 +4501,8 @@ extern void setup_process_coding_systems (Lisp_Object);
 # define CHILD_SETUP_ERROR_DESC "Doing vfork"
 #endif
 
-extern int emacs_spawn (pid_t *, int, int, int, char **, char **, const char *,
-			const char *);
+extern int emacs_spawn (pid_t *, int, int, int, char **, char **,
+                        const char *, const char *, const sigset_t *);
 extern char **make_environment_block (Lisp_Object);
 extern void init_callproc_1 (void);
 extern void init_callproc (void);
@@ -4578,6 +4581,7 @@ extern AVOID emacs_abort (void) NO_INLINE;
 extern int emacs_fstatat (int, char const *, void *, int);
 extern int emacs_openat (int, char const *, int, int);
 extern int emacs_open (const char *, int, int);
+extern int emacs_open_noquit (const char *, int, int);
 extern int emacs_pipe (int[2]);
 extern int emacs_close (int);
 extern ptrdiff_t emacs_read (int, void *, ptrdiff_t);

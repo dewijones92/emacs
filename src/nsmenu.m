@@ -101,7 +101,6 @@ popup_activated (void)
 static void
 ns_update_menubar (struct frame *f, bool deep_p)
 {
-  NSAutoreleasePool *pool;
   BOOL needsSet = NO;
   id menu = [NSApp mainMenu];
   bool owfi;
@@ -143,6 +142,10 @@ ns_update_menubar (struct frame *f, bool deep_p)
 #if NSMENUPROFILE
   ftime (&tb);
   t = -(1000*tb.time+tb.millitm);
+#endif
+
+#ifdef NS_IMPL_GNUSTEP
+  deep_p = 1; /* See comment in menuNeedsUpdate.  */
 #endif
 
   if (deep_p)
@@ -402,7 +405,7 @@ ns_update_menubar (struct frame *f, bool deep_p)
    frame's menus have changed, and the *step representation should be updated
    from Lisp.  */
 void
-set_frame_menubar (struct frame *f, bool first_time, bool deep_p)
+set_frame_menubar (struct frame *f, bool deep_p)
 {
   ns_update_menubar (f, deep_p);
 }
@@ -433,21 +436,22 @@ set_frame_menubar (struct frame *f, bool first_time, bool deep_p)
 }
 
 
-/* Delegate method called when a submenu is being opened: run a 'deep' call
-   to set_frame_menubar.  */
-
-/* TODO: GNUstep calls this method when the menu is still being built
-   which throws it into an infinite loop.  One possible solution is to
-   use menuWillOpen instead, but the Apple docs explicitly warn
-   against changing the contents of the menu in it.  I don't know what
-   the right thing to do for GNUstep is.  */
+/* Delegate method called when a submenu is being opened: run a 'deep'
+   call to ns_update_menubar.  */
 - (void)menuNeedsUpdate: (NSMenu *)menu
 {
   if (!FRAME_LIVE_P (SELECTED_FRAME ()))
     return;
 
+#ifdef NS_IMPL_COCOA
+/* TODO: GNUstep calls this method when the menu is still being built
+   which results in a recursive stack overflow.  One possible solution
+   is to use menuWillOpen instead, but the Apple docs explicitly warn
+   against changing the contents of the menu in it.  I don't know what
+   the right thing to do for GNUstep is.  */
   if (needsUpdate)
     ns_update_menubar (SELECTED_FRAME (), true);
+#endif
 }
 
 
@@ -956,14 +960,11 @@ update_frame_tool_bar (struct frame *f)
   int i, k = 0;
   EmacsView *view = FRAME_NS_VIEW (f);
   EmacsToolbar *toolbar = [view toolbar];
-  int oldh;
 
   NSTRACE ("update_frame_tool_bar");
 
   if (view == nil || toolbar == nil) return;
   block_input ();
-
-  oldh = FRAME_TOOLBAR_HEIGHT (f);
 
 #ifdef NS_IMPL_COCOA
   [toolbar clearActive];
@@ -1794,7 +1795,7 @@ DEFUN ("ns-reset-menu", Fns_reset_menu, Sns_reset_menu, 0, 0, 0,
        doc: /* Cause the NS menu to be re-calculated.  */)
      (void)
 {
-  set_frame_menubar (SELECTED_FRAME (), 1, 0);
+  set_frame_menubar (SELECTED_FRAME (), 0);
   return Qnil;
 }
 

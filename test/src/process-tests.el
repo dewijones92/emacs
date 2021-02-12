@@ -28,6 +28,7 @@
 (require 'puny)
 (require 'rx)
 (require 'subr-x)
+(require 'dns)
 
 ;; Timeout in seconds; the test fails if the timeout is reached.
 (defvar process-test-sentinel-wait-timeout 2.0)
@@ -350,14 +351,23 @@ See Bug#30460."
 ;; All the following tests require working DNS, which appears not to
 ;; be the case for hydra.nixos.org, so disable them there for now.
 
+;; This will need updating when IANA assign more IPv6 global ranges.
+(defun ipv6-is-available ()
+  (and (featurep 'make-network-process '(:family ipv6))
+       (cl-rassoc-if
+        (lambda (elt)
+          (and (eq 9 (length elt))
+               (= (logand (aref elt 0) #xe000) #x2000)))
+        (network-interface-list))))
+
 (ert-deftest lookup-family-specification ()
   "`network-lookup-address-info' should only accept valid family symbols."
   (skip-unless (not (getenv "EMACS_HYDRA_CI")))
   (with-timeout (60 (ert-fail "Test timed out"))
-  (should-error (network-lookup-address-info "google.com" 'both))
-  (should (network-lookup-address-info "google.com" 'ipv4))
-  (when (featurep 'make-network-process '(:family ipv6))
-    (should (network-lookup-address-info "google.com" 'ipv6)))))
+  (should-error (network-lookup-address-info "localhost" 'both))
+  (should (network-lookup-address-info "localhost" 'ipv4))
+  (when (ipv6-is-available)
+    (should (network-lookup-address-info "localhost" 'ipv6)))))
 
 (ert-deftest lookup-unicode-domains ()
   "Unicode domains should fail."
@@ -380,7 +390,8 @@ See Bug#30460."
         (addresses-v4 (network-lookup-address-info "google.com" 'ipv4)))
     (should addresses-both)
     (should addresses-v4))
-  (when (featurep 'make-network-process '(:family ipv6))
+  (when (and (ipv6-is-available)
+             (dns-query "google.com" 'AAAA))
     (should (network-lookup-address-info "google.com" 'ipv6)))))
 
 (ert-deftest non-existent-lookup-failure ()
@@ -512,18 +523,6 @@ FD_SETSIZE."
            (delete-process (pop ,processes))
            ,@body)))))
 
-(defmacro process-tests--with-temp-file (var &rest body)
-  "Bind VAR to the name of a new regular file and evaluate BODY.
-Afterwards, delete the file."
-  (declare (indent 1) (debug (symbolp body)))
-  (cl-check-type var symbol)
-  (let ((file (make-symbol "file")))
-    `(let ((,file (make-temp-file "emacs-test-")))
-       (unwind-protect
-           (let ((,var ,file))
-             ,@body)
-         (delete-file ,file)))))
-
 (defmacro process-tests--with-temp-directory (var &rest body)
   "Bind VAR to the name of a new directory and evaluate BODY.
 Afterwards, delete the directory."
@@ -547,8 +546,8 @@ Afterwards, delete the directory."
   "Check that Emacs doesn't crash when trying to use more than
 FD_SETSIZE file descriptors (Bug#24325)."
   (with-timeout (60 (ert-fail "Test timed out"))
-    (let ((sleep (executable-find "sleep")))
-      (skip-unless sleep)
+    (let ((cat (executable-find "cat")))
+      (skip-unless cat)
       (dolist (conn-type '(pipe pty))
         (ert-info ((format "Connection type `%s'" conn-type))
           (process-tests--fd-setsize-test
@@ -564,7 +563,7 @@ FD_SETSIZE file descriptors (Bug#24325)."
                        ;; ignore `file-error'.
                        (process-tests--ignore-EMFILE
                          (make-process :name (format "test %d" i)
-                                       :command (list sleep "5")
+                                       :command (list cat)
                                        :connection-type conn-type
                                        :coding 'no-conversion
                                        :noquery t))))
@@ -572,6 +571,11 @@ FD_SETSIZE file descriptors (Bug#24325)."
               ;; We should have managed to start at least one process.
               (should processes)
               (dolist (process processes)
+                ;; The process now should either be running, or have
+                ;; already failed before `exec'.
+                (should (memq (process-status process) '(run exit)))
+                (when (process-live-p process)
+                  (process-send-eof process))
                 (while (accept-process-output process))
                 (should (eq (process-status process) 'exit))
                 ;; If there's an error between fork and exec, Emacs
@@ -653,13 +657,9 @@ FD_SETSIZE file descriptors (Bug#24325)."
 (ert-deftest process-tests/fd-setsize-no-crash/make-serial-process ()
   "Check that Emacs doesn't crash when trying to use more than
 FD_SETSIZE file descriptors (Bug#24325)."
+  ;; This test cannot be run if PTYs aren't supported.
+  (skip-unless (not (eq system-type 'windows-nt)))
   (with-timeout (60 (ert-fail "Test timed out"))
-    (skip-unless (file-executable-p shell-file-name))
-    (skip-unless (executable-find "tty"))
-    (skip-unless (executable-find "sleep"))
-    ;; `process-tests--new-pty' probably only works with GNU Bash.
-    (skip-unless (string-equal
-                  (file-name-nondirectory shell-file-name) "bash"))
     (process-tests--with-processes processes
       ;; In order to use `make-serial-process', we need to create some
       ;; pseudoterminals.  The easiest way to do that is to start a
@@ -667,14 +667,31 @@ FD_SETSIZE file descriptors (Bug#24325)."
       ;; ensure that the terminal stays around while we connect to it.
       ;; Create the host processes before the dummy pipes so we have a
       ;; high chance of succeeding here.
-      (let ((tty-names ()))
-        (dotimes (_ 10)
-          (cl-destructuring-bind
-              (host tty-name) (process-tests--new-pty)
+      (let ((sleep (executable-find "sleep"))
+            (tty-names ()))
+        (skip-unless sleep)
+        (dotimes (i 10)
+          (let* ((host (make-process :name (format "tty host %d" i)
+                                     :command (list sleep "60")
+                                     :buffer nil
+                                     :coding 'utf-8-unix
+                                     :connection-type 'pty
+                                     :noquery t))
+                 (tty-name (process-tty-name host)))
             (should (processp host))
             (push host processes)
+            ;; FIXME: The assumption below that using :connection 'pty
+            ;; in make-process necessarily produces a process with PTY
+            ;; connection is unreliable and non-portable.
+            ;; make-process can legitimately and silently fall back on
+            ;; pipes if allocating a PTY fails (and on MS-Windows it
+            ;; always fails).  The following code also assumes that
+            ;; process-tty-name produces a file name that can be
+            ;; passed to 'stat' and to make-serial-process, which is
+            ;; also non-portable.
             (should tty-name)
             (should (file-exists-p tty-name))
+            (should-not (member tty-name tty-names))
             (push tty-name tty-names)))
         (process-tests--fd-setsize-test
           (process-tests--with-processes processes
@@ -717,42 +734,178 @@ Return nil if that can't be determined."
                 (match-string-no-properties 1))))))
   process-tests--EMFILE-message)
 
-(defun process-tests--new-pty ()
-  "Allocate a new pseudoterminal.
-Return a list (PROCESS TTY-NAME)."
-  ;; The command below will typically only work with GNU Bash.
-  (should (string-equal (file-name-nondirectory shell-file-name)
-                        "bash"))
-  (process-tests--with-temp-file temp-file
-    (should-not (file-remote-p temp-file))
-    (let* ((command (list shell-file-name shell-command-switch
-                          (format "tty > %s && sleep 60"
-                                  (shell-quote-argument
-                                   (file-name-unquote temp-file)))))
-           (process (make-process :name "tty host"
-                                  :command command
-                                  :buffer nil
-                                  :coding 'utf-8-unix
-                                  :connection-type 'pty
-                                  :noquery t))
-           (tty-name nil)
-           (coding-system-for-read 'utf-8-unix)
-           (coding-system-for-write 'utf-8-unix))
-      ;; Wait until TTY name has arrived.
-      (with-timeout (2 (message "Timed out waiting for TTY name"))
-        (while (and (process-live-p process) (not tty-name))
-          (sleep-for 0.1)
-          (when-let ((attributes (file-attributes temp-file)))
-            (when (cl-plusp (file-attribute-size attributes))
-              (with-temp-buffer
-                (insert-file-contents temp-file)
-                (goto-char (point-max))
-                ;; `tty' has printed a trailing newline.
-                (skip-chars-backward "\n")
-                (unless (bobp)
-                  (setq tty-name (buffer-substring-no-properties
-                                  (point-min) (point)))))))))
-      (list process tty-name))))
+(ert-deftest process-tests/sentinel-called ()
+  "Check that sentinels are called after processes finish"
+  (let ((command (process-tests--emacs-command)))
+    (skip-unless command)
+    (dolist (conn-type '(pipe pty))
+      (ert-info ((format "Connection type: %s" conn-type))
+        (process-tests--with-processes processes
+          (let* ((calls ())
+                 (process (make-process
+                           :name "echo"
+                           :command (process-tests--eval
+                                     command '(print "first"))
+                           :noquery t
+                           :connection-type conn-type
+                           :coding 'utf-8-unix
+                           :sentinel (lambda (process message)
+                                       (push (list process message)
+                                             calls)))))
+            (push process processes)
+            (while (accept-process-output process))
+            (should (equal calls
+                           (list (list process "finished\n"))))))))))
+
+(ert-deftest process-tests/sentinel-with-multiple-processes ()
+  "Check that sentinels are called in time even when other processes
+have written output."
+  (let ((command (process-tests--emacs-command)))
+    (skip-unless command)
+    (dolist (conn-type '(pipe pty))
+      (ert-info ((format "Connection type: %s" conn-type))
+        (process-tests--with-processes processes
+          (let* ((calls ())
+                 (process (make-process
+                           :name "echo"
+                           :command (process-tests--eval
+                                     command '(print "first"))
+                           :noquery t
+                           :connection-type conn-type
+                           :coding 'utf-8-unix
+                           :sentinel (lambda (process message)
+                                       (push (list process message)
+                                             calls)))))
+            (push process processes)
+            (push (make-process
+                   :name "bash"
+                   :command (process-tests--eval
+                             command
+                             '(progn (sleep-for 10) (print "second")))
+                   :noquery t
+                   :connection-type conn-type)
+                  processes)
+            (while (accept-process-output process))
+            (should (equal calls
+                           (list (list process "finished\n"))))))))))
+
+(ert-deftest process-tests/multiple-threads-waiting ()
+  (skip-unless (fboundp 'make-thread))
+  (with-timeout (60 (ert-fail "Test timed out"))
+    (process-tests--with-processes processes
+      (let ((threads ())
+            (cat (executable-find "cat")))
+        (skip-unless cat)
+        (dotimes (i 10)
+          (let* ((name (format "test %d" i))
+                 (process (make-process :name name
+                                        :command (list cat)
+                                        :coding 'no-conversion
+                                        :noquery t
+                                        :connection-type 'pipe)))
+            (push process processes)
+            (set-process-thread process nil)
+            (push (make-thread
+                   (lambda ()
+                     (while (accept-process-output process)))
+                   name)
+                  threads)))
+        (mapc #'process-send-eof processes)
+        (cl-loop for process in processes
+                 and thread in threads
+                 do
+                 (should-not (thread-join thread))
+                 (should-not (thread-last-error))
+                 (should (eq (process-status process) 'exit))
+                 (should (eql (process-exit-status process) 0)))))))
+
+(defun process-tests--eval (command form)
+  "Return a command that evaluates FORM in an Emacs subprocess.
+COMMAND must be a list returned by
+`process-tests--emacs-command'."
+  (let ((print-gensym t)
+        (print-circle t)
+        (print-length nil)
+        (print-level nil)
+        (print-escape-control-characters t)
+        (print-escape-newlines t)
+        (print-escape-multibyte t)
+        (print-escape-nonascii t))
+    `(,@command "--quick" "--batch" ,(format "--eval=%S" form))))
+
+(defun process-tests--emacs-command ()
+  "Return a command to reinvoke the current Emacs instance.
+Return nil if that doesn't appear to be possible."
+  (when-let ((binary (process-tests--emacs-binary))
+             (dump (process-tests--dump-file)))
+    (cons binary
+          (unless (eq dump :not-needed)
+            (list (concat "--dump-file="
+                          (file-name-unquote dump)))))))
+
+(defun process-tests--emacs-binary ()
+  "Return the filename of the currently running Emacs binary.
+Return nil if that can't be determined."
+  (and (stringp invocation-name)
+       (not (file-remote-p invocation-name))
+       (not (file-name-absolute-p invocation-name))
+       (stringp invocation-directory)
+       (not (file-remote-p invocation-directory))
+       (file-name-absolute-p invocation-directory)
+       (when-let ((file (process-tests--usable-file-for-reinvoke
+                         (expand-file-name invocation-name
+                                           invocation-directory))))
+         (and (file-executable-p file) file))))
+
+(defun process-tests--dump-file ()
+  "Return the filename of the dump file used to start Emacs.
+Return nil if that can't be determined.  Return `:not-needed' if
+Emacs wasn't started with a dump file."
+  (if-let ((stats (and (fboundp 'pdumper-stats) (pdumper-stats))))
+      (when-let ((file (process-tests--usable-file-for-reinvoke
+                        (cdr (assq 'dump-file-name stats)))))
+        (and (file-readable-p file) file))
+    :not-needed))
+
+(defun process-tests--usable-file-for-reinvoke (filename)
+  "Return a version of FILENAME that can be used to reinvoke Emacs.
+Return nil if FILENAME doesn't exist."
+  (when (and (stringp filename)
+             (not (file-remote-p filename)))
+    (cl-callf file-truename filename)
+    (and (stringp filename)
+         (not (file-remote-p filename))
+         (file-name-absolute-p filename)
+         (file-regular-p filename)
+         filename)))
+
+;; Bug#46284
+(ert-deftest process-sentinel-interrupt-event ()
+  "Test that interrupting a process on Windows sends \"interrupt\" to sentinel."
+  (skip-unless (eq system-type 'windows-nt))
+  (with-temp-buffer
+    (let* ((proc-buf (current-buffer))
+	   ;; Start a new emacs process to wait idly until interrupted.
+	   (cmd "emacs -batch --eval=\"(sit-for 50000)\"")
+	   (proc (start-file-process-shell-command
+                  "test/process-sentinel-signal-event" proc-buf cmd))
+	   (events '()))
+
+      ;; Capture any incoming events.
+      (set-process-sentinel proc
+                            (lambda (_prc event)
+			      (push event events)))
+      ;; Wait for the process to start.
+      (sleep-for 2)
+      (should (equal 'run (process-status proc)))
+      ;; Interrupt the sub-process and wait for it to die.
+      (interrupt-process proc)
+      (sleep-for 2)
+      ;; Should have received SIGINT...
+      (should (equal 'signal (process-status proc)))
+      (should (equal 2 (process-exit-status proc)))
+      ;; ...and the change description should be "interrupt".
+      (should (equal '("interrupt\n") events)))))
 
 (provide 'process-tests)
 ;;; process-tests.el ends here

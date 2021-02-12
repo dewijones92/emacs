@@ -1500,7 +1500,7 @@ otherwise."
 	(window-pixel-height window)
       (window-total-height window round))))
 
-(defvar window-size-fixed nil
+(defvar-local window-size-fixed nil
   "Non-nil in a buffer means windows displaying the buffer are fixed-size.
 If the value is `height', then only the window's height is fixed.
 If the value is `width', then only the window's width is fixed.
@@ -1509,7 +1509,6 @@ Any other non-nil value fixes both the width and the height.
 Emacs won't change the size of any window displaying that buffer,
 unless it has no other choice (like when deleting a neighboring
 window).")
-(make-variable-buffer-local 'window-size-fixed)
 
 (defun window--preservable-size (window &optional horizontal)
   "Return height of WINDOW as `window-preserve-size' would preserve it.
@@ -1736,9 +1735,11 @@ interpret DELTA as pixels."
   (setq window (window-normalize-window window))
   (cond
    ((< delta 0)
-    (max (- (window-min-size window horizontal ignore pixelwise)
-	    (window-size window horizontal pixelwise))
-	 delta))
+    (let ((min-size (window-min-size window horizontal ignore pixelwise))
+          (size (window-size window horizontal pixelwise)))
+      (if (<= size min-size)
+          0
+        (max (- min-size size) delta))))
    ((> delta 0)
     (if (window-size-fixed-p window horizontal ignore)
 	0
@@ -4116,7 +4117,10 @@ frame can be safely deleted."
 				     frame))
 			(throw 'other t))))
 		  (let ((minibuf (active-minibuffer-window)))
-		    (and minibuf (eq frame (window-frame minibuf)))))
+		    (and minibuf (eq frame (window-frame minibuf))
+                         (not (eq (default-toplevel-value
+                                    minibuffer-follows-selected-frame)
+                                  t)))))
 	'frame))
      ((window-minibuffer-p window)
       ;; If WINDOW is the minibuffer window of a non-minibuffer-only
@@ -5748,11 +5752,10 @@ nil (i.e. any), `height' or `width'."
 			   '((height . width) (width . height))))))))
 
 ;;; A different solution to balance-windows.
-(defvar window-area-factor 1
+(defvar-local window-area-factor 1
   "Factor by which the window area should be over-estimated.
 This is used by `balance-windows-area'.
 Changing this globally has no effect.")
-(make-variable-buffer-local 'window-area-factor)
 
 (defun balance-windows-area-adjust (window delta horizontal pixelwise)
   "Wrapper around `window-resize' with error checking.
@@ -7243,6 +7246,7 @@ The actual non-nil value of this variable will be copied to the
 	   (const display-buffer-below-selected)
 	   (const display-buffer-at-bottom)
 	   (const display-buffer-in-previous-window)
+	   (const display-buffer-use-least-recent-window)
 	   (const display-buffer-use-some-window)
 	   (const display-buffer-use-some-frame)
 	   (function :tag "Other function"))
@@ -7378,6 +7382,37 @@ fails, call `display-buffer-pop-up-frame'.")
 
 (defun display-buffer (buffer-or-name &optional action frame)
   "Display BUFFER-OR-NAME in some window, without selecting it.
+To change which window is used, set `display-buffer-alist'
+to an expression containing one of these \"action\" functions:
+
+ `display-buffer-same-window' -- Use the selected window.
+ `display-buffer-reuse-window' -- Use a window already showing
+    the buffer.
+ `display-buffer-in-previous-window' -- Use a window that did
+    show the buffer before.
+ `display-buffer-use-some-window' -- Use some existing window.
+ `display-buffer-use-least-recent-window' -- Try to avoid re-using
+    windows that have recently been switched to.
+ `display-buffer-pop-up-window' -- Pop up a new window.
+ `display-buffer-below-selected' -- Use or pop up a window below
+    the selected one.
+ `display-buffer-at-bottom' -- Use or pop up a window at the
+    bottom of the selected frame.
+ `display-buffer-pop-up-frame' -- Show the buffer on a new frame.
+ `display-buffer-in-child-frame' -- Show the buffer in a
+    child frame.
+ `display-buffer-no-window' -- Do not display the buffer and
+    have `display-buffer' return nil immediately.
+
+For instance:
+
+   (setq display-buffer-alist '((\".*\" display-buffer-at-bottom)))
+
+Buffer display can be further customized to a very high degree;
+the rest of this docstring explains some of the many
+possibilities, and also see `(emacs)Window Choice' for more
+information.
+
 BUFFER-OR-NAME must be a buffer or a string naming a live buffer.
 Return the window chosen for displaying that buffer, or nil if no
 such window is found.
@@ -7403,23 +7438,8 @@ function in the combined function list in turn, passing the
 buffer as the first argument and the combined action alist as the
 second argument, until one of the functions returns non-nil.
 
-Action functions and the action they try to perform are:
- `display-buffer-same-window' -- Use the selected window.
- `display-buffer-reuse-window' -- Use a window already showing
-    the buffer.
- `display-buffer-in-previous-window' -- Use a window that did
-    show the buffer before.
- `display-buffer-use-some-window' -- Use some existing window.
- `display-buffer-pop-up-window' -- Pop up a new window.
- `display-buffer-below-selected' -- Use or pop up a window below
-    the selected one.
- `display-buffer-at-bottom' -- Use or pop up a window at the
-    bottom of the selected frame.
- `display-buffer-pop-up-frame' -- Show the buffer on a new frame.
- `display-buffer-in-child-frame' -- Show the buffer in a
-    child frame.
- `display-buffer-no-window' -- Do not display the buffer and
-    have `display-buffer' return nil immediately.
+See above for the action functions and the action they try to
+perform.
 
 Action alist entries are:
  `inhibit-same-window' -- A non-nil value prevents the same
@@ -8174,8 +8194,8 @@ such alists.
 If ALIST has a non-nil `inhibit-same-window' entry, the selected
 window is not usable.  A dedicated window is usable only if it
 already shows BUFFER.  If ALIST contains a `previous-window'
-entry, the window specified by that entry is usable even if it
-never showed BUFFER before.
+entry, the window specified by that entry (either a variable
+or a value) is usable even if it never showed BUFFER before.
 
 If ALIST contains a `reusable-frames' entry, its value determines
 which frames to search for a usable window:
@@ -8217,6 +8237,7 @@ indirectly called by the latter."
 		   0)
 		  (display-buffer-reuse-frames 0)
 		  (t (last-nonminibuffer-frame))))
+         (previous-window (cdr (assq 'previous-window alist)))
 	 best-window second-best-window window)
     ;; Scan windows whether they have shown the buffer recently.
     (catch 'best
@@ -8230,7 +8251,9 @@ indirectly called by the latter."
 	    (throw 'best t)))))
     ;; When ALIST has a `previous-window' entry, that entry may override
     ;; anything we found so far.
-    (when (and (setq window (cdr (assq 'previous-window alist)))
+    (when (and previous-window (boundp previous-window))
+      (setq previous-window (symbol-value previous-window)))
+    (when (and (setq window previous-window)
 	       (window-live-p window)
 	       (or (eq buffer (window-buffer window))
                    (not (window-dedicated-p window))))
@@ -8241,6 +8264,16 @@ indirectly called by the latter."
     ;; Return best or second best window found.
     (when (setq window (or best-window second-best-window))
       (window--display-buffer buffer window 'reuse alist))))
+
+(defun display-buffer-use-least-recent-window (buffer alist)
+  "Display BUFFER in an existing window, but that hasn't been used lately.
+This `display-buffer' action function is like
+`display-buffer-use-some-window', but will cycle through windows
+when displaying buffers repeatedly, and if there's only a single
+window, it will split the window."
+  (when-let ((window (display-buffer-use-some-window
+                      buffer (cons (cons 'inhibit-same-window t) alist))))
+    (window-bump-use-time window)))
 
 (defun display-buffer-use-some-window (buffer alist)
   "Display BUFFER in an existing window.
@@ -9545,8 +9578,7 @@ buffers displaying right to left text."
 ;; status is undone only when explicitly programmed, not when a buffer
 ;; is reverted or a mode function is called.
 
-(defvar window-group-start-function nil)
-(make-variable-buffer-local 'window-group-start-function)
+(defvar-local window-group-start-function nil)
 (put 'window-group-start-function 'permanent-local t)
 (defun window-group-start (&optional window)
   "Return position at which display currently starts in the group of
@@ -9559,8 +9591,7 @@ This is updated by redisplay or by calling `set-window*-start'."
       (funcall window-group-start-function window)
     (window-start window)))
 
-(defvar window-group-end-function nil)
-(make-variable-buffer-local 'window-group-end-function)
+(defvar-local window-group-end-function nil)
 (put 'window-group-end-function 'permanent-local t)
 (defun window-group-end (&optional window update)
   "Return position at which display currently ends in the group of
@@ -9579,8 +9610,7 @@ if it isn't already recorded."
       (funcall window-group-end-function window update)
     (window-end window update)))
 
-(defvar set-window-group-start-function nil)
-(make-variable-buffer-local 'set-window-group-start-function)
+(defvar-local set-window-group-start-function nil)
 (put 'set-window-group-start-function 'permanent-local t)
 (defun set-window-group-start (window pos &optional noforce)
   "Make display in the group of windows containing WINDOW start at
@@ -9594,8 +9624,7 @@ overriding motion of point in order to display at this exact start."
       (funcall set-window-group-start-function window pos noforce)
     (set-window-start window pos noforce)))
 
-(defvar recenter-window-group-function nil)
-(make-variable-buffer-local 'recenter-window-group-function)
+(defvar-local recenter-window-group-function nil)
 (put 'recenter-window-group-function 'permanent-local t)
 (defun recenter-window-group (&optional arg)
   "Center point in the group of windows containing the selected window
@@ -9621,8 +9650,7 @@ and redisplay normally--don't erase and redraw the frame."
       (funcall recenter-window-group-function arg)
     (recenter arg)))
 
-(defvar pos-visible-in-window-group-p-function nil)
-(make-variable-buffer-local 'pos-visible-in-window-group-p-function)
+(defvar-local pos-visible-in-window-group-p-function nil)
 (put 'pos-visible-in-window-group-p-function 'permanent-local t)
 (defun pos-visible-in-window-group-p (&optional pos window partially)
   "Return non-nil if position POS is currently on the frame in the
@@ -9652,8 +9680,7 @@ POS, ROWH is the visible height of that row, and VPOS is the row number
       (funcall pos-visible-in-window-group-p-function pos window partially)
     (pos-visible-in-window-p pos window partially)))
 
-(defvar selected-window-group-function nil)
-(make-variable-buffer-local 'selected-window-group-function)
+(defvar-local selected-window-group-function nil)
 (put 'selected-window-group-function 'permanent-local t)
 (defun selected-window-group ()
   "Return the list of windows in the group containing the selected window.
@@ -9663,8 +9690,7 @@ result is a list containing only the selected window."
       (funcall selected-window-group-function)
     (list (selected-window))))
 
-(defvar move-to-window-group-line-function nil)
-(make-variable-buffer-local 'move-to-window-group-line-function)
+(defvar-local move-to-window-group-line-function nil)
 (put 'move-to-window-group-line-function 'permanent-local t)
 (defun move-to-window-group-line (arg)
   "Position point relative to the current group of windows.
@@ -9707,13 +9733,16 @@ cycling order is middle -> top -> bottom."
   :group 'windows)
 
 (defun recenter-top-bottom (&optional arg)
-  "Move current buffer line to the specified window line.
-With no prefix argument, successive calls place point according
-to the cycling order defined by `recenter-positions'.
+  "Scroll the window so that current line is in the middle of the window.
+Successive invocations scroll the window in a cyclical order to put
+the current line at certain places within the window, as determined by
+`recenter-positions'.  By default, the second invocation puts the
+current line at the top-most window line, the third invocation puts it
+on the bottom-most window line, and then the order is reused in a
+cyclical manner.
 
-A prefix argument is handled like `recenter':
- With numeric prefix ARG, move current line to window-line ARG.
- With plain `C-u', move current line to window center."
+With numeric prefix ARG, move current line ARG lines below the window top.
+With plain \\[universal-argument], move current line to window center."
   (interactive "P")
   (cond
    (arg (recenter arg t))                 ; Always respect ARG.
@@ -9738,6 +9767,19 @@ A prefix argument is handled like `recenter':
 	     (recenter (round (* recenter-last-op (window-height))) t)))))))
 
 (define-key global-map [?\C-l] 'recenter-top-bottom)
+
+(defun recenter-other-window (&optional arg)
+  "Call `recenter-top-bottom' in the other window.
+
+A prefix argument is handled like `recenter':
+ With numeric prefix ARG, move current line to window-line ARG.
+ With plain `C-u', move current line to window center."
+  (interactive "P")
+  (with-selected-window (other-window-for-scrolling)
+    (recenter-top-bottom arg)
+    (pulse-momentary-highlight-one-line (point))))
+
+(define-key global-map [?\S-\M-\C-l] 'recenter-other-window)
 
 (defun move-to-window-line-top-bottom (&optional arg)
   "Position point relative to window.

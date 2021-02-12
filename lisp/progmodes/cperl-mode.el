@@ -1157,25 +1157,25 @@ versions of Emacs."
 	    (get-text-property (point-min) 'in-pod)
 	    (< (progn
 		 (and cperl-syntaxify-for-menu
-		      (cperl-update-syntaxification (point-max) (point-max)))
+		      (cperl-update-syntaxification (point-max)))
 		 (next-single-property-change (point-min) 'in-pod nil (point-max)))
 	       (point-max)))]
 	  ["Ispell HERE-DOCs" cperl-here-doc-spell
 	   (< (progn
 		(and cperl-syntaxify-for-menu
-		     (cperl-update-syntaxification (point-max) (point-max)))
+		     (cperl-update-syntaxification (point-max)))
 		(next-single-property-change (point-min) 'here-doc-group nil (point-max)))
 	      (point-max))]
 	  ["Narrow to this HERE-DOC" cperl-narrow-to-here-doc
 	   (eq 'here-doc  (progn
 		(and cperl-syntaxify-for-menu
-		     (cperl-update-syntaxification (point) (point)))
+		     (cperl-update-syntaxification (point)))
 		(get-text-property (point) 'syntax-type)))]
 	  ["Select this HERE-DOC or POD section"
 	   cperl-select-this-pod-or-here-doc
 	   (memq (progn
 		   (and cperl-syntaxify-for-menu
-			(cperl-update-syntaxification (point) (point)))
+			(cperl-update-syntaxification (point)))
 		   (get-text-property (point) 'syntax-type))
 		 '(here-doc pod))]
 	  "----"
@@ -1659,36 +1659,18 @@ or as help on variables `cperl-tips', `cperl-problems',
                 nil nil ((?_ . "w"))))
   ;; Reset syntaxification cache.
   (setq-local cperl-syntax-state nil)
-  (if cperl-use-syntax-table-text-property
-      (if (eval-when-compile (fboundp 'syntax-propertize-rules))
-          (progn
-            ;; Reset syntaxification cache.
-            (setq-local cperl-syntax-done-to nil)
-            (setq-local syntax-propertize-function
-                        (lambda (start end)
-                          (goto-char start)
-                          ;; Even if cperl-fontify-syntaxically has already gone
-                          ;; beyond `start', syntax-propertize has just removed
-                          ;; syntax-table properties between start and end, so we have
-                          ;; to re-apply them.
-                          (setq cperl-syntax-done-to start)
-                          (cperl-fontify-syntaxically end))))
-	;; Do not introduce variable if not needed, we check it!
-        (setq-local parse-sexp-lookup-properties t)
-	;; Our: just a plug for wrong font-lock
-        (setq-local font-lock-unfontify-region-function
-                    ;; not present with old Emacs
-                    #'cperl-font-lock-unfontify-region-function)
-	;; Reset syntaxification cache.
-        (setq-local cperl-syntax-done-to nil)
-        (setq-local font-lock-syntactic-keywords
-                    (if cperl-syntaxify-by-font-lock
-                        '((cperl-fontify-syntaxically))
-                      ;; unless font-lock-syntactic-keywords, font-lock (pre-22.1)
-                      ;;  used to ignore syntax-table text-properties.  (t) is a hack
-                      ;;  to make font-lock think that font-lock-syntactic-keywords
-                      ;;  are defined.
-                      '(t)))))
+  (when cperl-use-syntax-table-text-property
+    ;; Reset syntaxification cache.
+    (setq-local cperl-syntax-done-to nil)
+    (setq-local syntax-propertize-function
+                (lambda (start end)
+                  (goto-char start)
+                  ;; Even if cperl-fontify-syntaxically has already gone
+                  ;; beyond `start', syntax-propertize has just removed
+                  ;; syntax-table properties between start and end, so we have
+                  ;; to re-apply them.
+                  (setq cperl-syntax-done-to start)
+                  (cperl-fontify-syntaxically end))))
   (setq cperl-font-lock-multiline t) ; Not localized...
   (setq-local font-lock-multiline t)
   (setq-local font-lock-fontify-region-function
@@ -2405,7 +2387,7 @@ means indent rigidly all the lines of the expression starting after point
 so that this line becomes properly indented.
 The relative indentation among the lines of the expression are preserved."
   (interactive "P")
-  (cperl-update-syntaxification (point) (point))
+  (cperl-update-syntaxification (point))
   (if whole-exp
       ;; If arg, always indent this line as Perl
       ;; and shift remaining lines of expression the same amount.
@@ -2533,7 +2515,7 @@ Will not look before LIM."
 
 (defun cperl-sniff-for-indent (&optional parse-data) ; was parse-start
   ;; the sniffer logic to understand what the current line MEANS.
-  (cperl-update-syntaxification (point) (point))
+  (cperl-update-syntaxification (point))
   (let ((res (get-text-property (point) 'syntax-type)))
     (save-excursion
       (cond
@@ -3025,7 +3007,7 @@ Returns true if comment is found.  In POD will not move the point."
   ;; then looks for literal # or end-of-line.
   (let (state stop-in cpoint (lim (point-at-eol)) pr e)
     (or cperl-font-locking
-	(cperl-update-syntaxification lim lim))
+	(cperl-update-syntaxification lim))
     (beginning-of-line)
     (if (setq pr (get-text-property (point) 'syntax-type))
 	(setq e (next-single-property-change (point) 'syntax-type nil (point-max))))
@@ -4640,7 +4622,7 @@ CHARS is a string that contains good characters to have before us (however,
 `}' is treated \"smartly\" if it is not in the list)."
   (let ((lim (or lim (point-min)))
 	stop p)
-    (cperl-update-syntaxification (point) (point))
+    (cperl-update-syntaxification (point))
     (save-excursion
       (while (and (not stop) (> (point) lim))
 	(skip-chars-backward " \t\n\f" lim)
@@ -5027,7 +5009,7 @@ inclusive.
 If `cperl-indent-region-fix-constructs', will improve spacing on
 conditional/loop constructs."
   (interactive "r")
-  (cperl-update-syntaxification end end)
+  (cperl-update-syntaxification end)
   (save-excursion
     (let (cperl-update-start cperl-update-end (h-a-c after-change-functions))
       (let ((indent-info (list nil nil nil)	; Cannot use '(), since will modify
@@ -5233,7 +5215,7 @@ indentation and initial hashes.  Behaves usually outside of comment."
 	packages ends-ranges p marker is-proto
         is-pack index index1 name (end-range 0) package)
     (goto-char (point-min))
-    (cperl-update-syntaxification (point-max) (point-max))
+    (cperl-update-syntaxification (point-max))
     ;; Search for the function
     (progn ;;save-match-data
       (while (re-search-forward
@@ -5433,120 +5415,79 @@ indentation and initial hashes.  Behaves usually outside of comment."
 	    (cons
 	     (concat
 	      "\\(^\\|[^$@%&\\]\\)\\<\\("
-              ;; FIXME: Use regexp-opt.
-	      (mapconcat
-	       #'identity
+              (regexp-opt
 	       (append
                 cperl-sub-keywords
                 '("if" "until" "while" "elsif" "else"
-                 "given" "when" "default" "break"
-                 "unless" "for"
-                 "try" "catch" "finally"
-		 "foreach" "continue" "exit" "die" "last" "goto" "next"
-		 "redo" "return" "local" "exec"
-                 "do" "dump"
-                 "use" "our"
-		 "require" "package" "eval" "evalbytes" "my" "state"
-                 "BEGIN" "END" "CHECK" "INIT" "UNITCHECK"))
-	       "\\|")			; Flow control
+                  "given" "when" "default" "break"
+                  "unless" "for"
+                  "try" "catch" "finally"
+                  "foreach" "continue" "exit" "die" "last" "goto" "next"
+                  "redo" "return" "local" "exec"
+                  "do" "dump"
+                  "use" "our"
+                  "require" "package" "eval" "evalbytes" "my" "state"
+                  "BEGIN" "END" "CHECK" "INIT" "UNITCHECK"))) ; Flow control
 	      "\\)\\>") 2)		; was "\\)[ \n\t;():,|&]"
 					; In what follows we use `type' style
 					; for overwritable builtins
 	    (list
 	     (concat
 	      "\\(^\\|[^$@%&\\]\\)\\<\\("
-              ;; FIXME: Use regexp-opt.
-	      ;; "CORE" "__FILE__" "__LINE__" "__SUB__" "abs" "accept" "alarm"
-	      ;; "and" "atan2" "bind" "binmode" "bless" "caller"
-	      ;; "chdir" "chmod" "chown" "chr" "chroot" "close"
-	      ;; "closedir" "cmp" "connect" "continue" "cos" "crypt"
-	      ;; "dbmclose" "dbmopen" "die" "dump" "endgrent"
-	      ;; "endhostent" "endnetent" "endprotoent" "endpwent"
-	      ;; "endservent" "eof" "eq" "exec" "exit" "exp" "fc" "fcntl"
-	      ;; "fileno" "flock" "fork" "formline" "ge" "getc"
-	      ;; "getgrent" "getgrgid" "getgrnam" "gethostbyaddr"
-	      ;; "gethostbyname" "gethostent" "getlogin"
-	      ;; "getnetbyaddr" "getnetbyname" "getnetent"
-	      ;; "getpeername" "getpgrp" "getppid" "getpriority"
-	      ;; "getprotobyname" "getprotobynumber" "getprotoent"
-	      ;; "getpwent" "getpwnam" "getpwuid" "getservbyname"
-	      ;; "getservbyport" "getservent" "getsockname"
-	      ;; "getsockopt" "glob" "gmtime" "gt" "hex" "index" "int"
-	      ;; "ioctl" "join" "kill" "lc" "lcfirst" "le" "length"
-	      ;; "link" "listen" "localtime" "lock" "log" "lstat" "lt"
-	      ;; "mkdir" "msgctl" "msgget" "msgrcv" "msgsnd" "ne"
-	      ;; "not" "oct" "open" "opendir" "or" "ord" "pack" "pipe"
-	      ;; "quotemeta" "rand" "read" "readdir" "readline"
-	      ;; "readlink" "readpipe" "recv" "ref" "rename" "require"
-	      ;; "reset" "reverse" "rewinddir" "rindex" "rmdir" "seek"
-	      ;; "seekdir" "select" "semctl" "semget" "semop" "send"
-	      ;; "setgrent" "sethostent" "setnetent" "setpgrp"
-	      ;; "setpriority" "setprotoent" "setpwent" "setservent"
-	      ;; "setsockopt" "shmctl" "shmget" "shmread" "shmwrite"
-	      ;; "shutdown" "sin" "sleep" "socket" "socketpair"
-	      ;; "sprintf" "sqrt" "srand" "stat" "substr" "symlink"
-	      ;; "syscall" "sysopen" "sysread" "sysseek" "system" "syswrite" "tell"
-	      ;; "telldir" "time" "times" "truncate" "uc" "ucfirst"
-	      ;; "umask" "unlink" "unpack" "utime" "values" "vec"
-	      ;; "wait" "waitpid" "wantarray" "warn" "write" "x" "xor"
-	      "a\\(bs\\|ccept\\|tan2\\|larm\\|nd\\)\\|"
-	      "b\\(in\\(d\\|mode\\)\\|less\\)\\|"
-	      "c\\(h\\(r\\(\\|oot\\)\\|dir\\|mod\\|own\\)\\|aller\\|rypt\\|"
-	      "lose\\(\\|dir\\)\\|mp\\|o\\(s\\|n\\(tinue\\|nect\\)\\)\\)\\|"
-	      "CORE\\|d\\(ie\\|bm\\(close\\|open\\)\\|ump\\)\\|"
-	      "e\\(x\\(p\\|it\\|ec\\)\\|q\\|nd\\(p\\(rotoent\\|went\\)\\|"
-	      "hostent\\|servent\\|netent\\|grent\\)\\|of\\)\\|"
-	      "f\\(ileno\\|c\\(ntl\\)?\\|lock\\|or\\(k\\|mline\\)\\)\\|"
-	      "g\\(t\\|lob\\|mtime\\|e\\(\\|t\\(p\\(pid\\|r\\(iority\\|"
-	      "oto\\(byn\\(ame\\|umber\\)\\|ent\\)\\)\\|eername\\|w"
-	      "\\(uid\\|ent\\|nam\\)\\|grp\\)\\|host\\(by\\(addr\\|name\\)\\|"
-	      "ent\\)\\|s\\(erv\\(by\\(port\\|name\\)\\|ent\\)\\|"
-	      "ock\\(name\\|opt\\)\\)\\|c\\|login\\|net\\(by\\(addr\\|name\\)\\|"
-	      "ent\\)\\|gr\\(ent\\|nam\\|gid\\)\\)\\)\\)\\|"
-	      "hex\\|i\\(n\\(t\\|dex\\)\\|octl\\)\\|join\\|kill\\|"
-	      "l\\(i\\(sten\\|nk\\)\\|stat\\|c\\(\\|first\\)\\|t\\|e"
-	      "\\(\\|ngth\\)\\|o\\(c\\(altime\\|k\\)\\|g\\)\\)\\|m\\(sg\\(rcv\\|snd\\|"
-	      "ctl\\|get\\)\\|kdir\\)\\|n\\(e\\|ot\\)\\|o\\(pen\\(\\|dir\\)\\|"
-	      "r\\(\\|d\\)\\|ct\\)\\|p\\(ipe\\|ack\\)\\|quotemeta\\|"
-	      "r\\(index\\|and\\|mdir\\|e\\(quire\\|ad\\(pipe\\|\\|lin"
-	      "\\(k\\|e\\)\\|dir\\)\\|set\\|cv\\|verse\\|f\\|winddir\\|name"
-	      "\\)\\)\\|s\\(printf\\|qrt\\|rand\\|tat\\|ubstr\\|e\\(t\\(p\\(r"
-	      "\\(iority\\|otoent\\)\\|went\\|grp\\)\\|hostent\\|s\\(ervent\\|"
-	      "ockopt\\)\\|netent\\|grent\\)\\|ek\\(\\|dir\\)\\|lect\\|"
-	      "m\\(ctl\\|op\\|get\\)\\|nd\\)\\|h\\(utdown\\|m\\(read\\|ctl\\|"
-	      "write\\|get\\)\\)\\|y\\(s\\(read\\|call\\|open\\|tem\\|write\\|seek\\)\\|"
-	      "mlink\\)\\|in\\|leep\\|ocket\\(pair\\|\\)\\)\\|t\\(runcate\\|"
-	      "ell\\(\\|dir\\)\\|ime\\(\\|s\\)\\)\\|u\\(c\\(\\|first\\)\\|"
-	      "time\\|mask\\|n\\(pack\\|link\\)\\)\\|v\\(alues\\|ec\\)\\|"
-	      "w\\(a\\(rn\\|it\\(pid\\|\\)\\|ntarray\\)\\|rite\\)\\|"
-	      "x\\(\\|or\\)\\|__\\(FILE\\|LINE\\|PACKAGE\\|SUB\\)__"
-	      "\\)\\>") 2 'font-lock-type-face)
+              (regexp-opt
+               '("CORE" "__FILE__" "__LINE__" "__SUB__"
+                 "abs" "accept" "alarm" "and" "atan2"
+                 "bind" "binmode" "bless" "caller"
+                 "chdir" "chmod" "chown" "chr" "chroot" "close"
+                 "closedir" "cmp" "connect" "continue" "cos" "crypt"
+                 "dbmclose" "dbmopen" "die" "dump" "endgrent"
+                 "endhostent" "endnetent" "endprotoent" "endpwent"
+                 "endservent" "eof" "eq" "exec" "exit" "exp" "fc" "fcntl"
+                 "fileno" "flock" "fork" "formline" "ge" "getc"
+                 "getgrent" "getgrgid" "getgrnam" "gethostbyaddr"
+                 "gethostbyname" "gethostent" "getlogin"
+                 "getnetbyaddr" "getnetbyname" "getnetent"
+                 "getpeername" "getpgrp" "getppid" "getpriority"
+                 "getprotobyname" "getprotobynumber" "getprotoent"
+                 "getpwent" "getpwnam" "getpwuid" "getservbyname"
+                 "getservbyport" "getservent" "getsockname"
+                 "getsockopt" "glob" "gmtime" "gt" "hex" "index" "int"
+                 "ioctl" "join" "kill" "lc" "lcfirst" "le" "length"
+                 "link" "listen" "localtime" "lock" "log" "lstat" "lt"
+                 "mkdir" "msgctl" "msgget" "msgrcv" "msgsnd" "ne"
+                 "not" "oct" "open" "opendir" "or" "ord" "pack" "pipe"
+                 "quotemeta" "rand" "read" "readdir" "readline"
+                 "readlink" "readpipe" "recv" "ref" "rename" "require"
+                 "reset" "reverse" "rewinddir" "rindex" "rmdir" "seek"
+                 "seekdir" "select" "semctl" "semget" "semop" "send"
+                 "setgrent" "sethostent" "setnetent" "setpgrp"
+                 "setpriority" "setprotoent" "setpwent" "setservent"
+                 "setsockopt" "shmctl" "shmget" "shmread" "shmwrite"
+                 "shutdown" "sin" "sleep" "socket" "socketpair"
+                 "sprintf" "sqrt" "srand" "stat" "substr" "symlink"
+                 "syscall" "sysopen" "sysread" "sysseek" "system" "syswrite" "tell"
+                 "telldir" "time" "times" "truncate" "uc" "ucfirst"
+                 "umask" "unlink" "unpack" "utime" "values" "vec"
+                 "wait" "waitpid" "wantarray" "warn" "write" "x" "xor"))
+              "\\)\\>")
+             2 'font-lock-type-face)
 	    ;; In what follows we use `other' style
 	    ;; for nonoverwritable builtins
-	    ;; Somehow 's', 'm' are not auto-generated???
 	    (list
 	     (concat
 	      "\\(^\\|[^$@%&\\]\\)\\<\\("
-	      ;; "AUTOLOAD" "BEGIN" "CHECK" "DESTROY" "END" "INIT" "UNITCHECK" "__END__" "chomp"
-	      ;; "break" "chop" "default" "defined" "delete" "do" "each" "else" "elsif"
-	      ;; "eval" "evalbytes" "exists" "for" "foreach" "format" "given" "goto"
-	      ;; "grep" "if" "keys" "last" "local" "map" "my" "next"
-	      ;; "no" "our" "package" "pop" "pos" "print" "printf" "prototype" "push"
-	      ;; "q" "qq" "qw" "qx" "redo" "return" "say" "scalar" "shift"
-	      ;; "sort" "splice" "split" "state" "study" "sub" "tie" "tr"
-	      ;; "undef" "unless" "unshift" "untie" "until" "use"
-	      ;; "when" "while" "y"
-	      "AUTOLOAD\\|BEGIN\\|\\(UNIT\\)?CHECK\\|break\\|c\\(atch\\|ho\\(p\\|mp\\)\\)\\|d\\(e\\(f\\(inally\\|ault\\|ined\\)\\|lete\\)\\|"
-	      "o\\)\\|DESTROY\\|e\\(ach\\|val\\(bytes\\)?\\|xists\\|ls\\(e\\|if\\)\\)\\|"
-	      "END\\|for\\(\\|each\\|mat\\)\\|g\\(iven\\|rep\\|oto\\)\\|INIT\\|if\\|keys\\|"
-	      "l\\(ast\\|ocal\\)\\|m\\(ap\\|y\\)\\|n\\(ext\\|o\\)\\|our\\|"
-	      "p\\(ackage\\|rototype\\|rint\\(\\|f\\)\\|ush\\|o\\(p\\|s\\)\\)\\|"
-	      "q\\(\\|q\\|w\\|x\\|r\\)\\|re\\(turn\\|do\\)\\|s\\(ay\\|pli\\(ce\\|t\\)\\|"
-	      "calar\\|t\\(ate\\|udy\\)\\|ub\\|hift\\|ort\\)\\|t\\(ry?\\|ied?\\)\\|"
-	      "u\\(se\\|n\\(shift\\|ti\\(l\\|e\\)\\|def\\|less\\)\\)\\|"
-	      "wh\\(en\\|ile\\)\\|y\\|__\\(END\\|DATA\\)__" ;__DATA__ added manually
-	      "\\|[sm]"			; Added manually
-	      "\\)\\>")
+              (regexp-opt
+               '("AUTOLOAD" "BEGIN" "CHECK" "DESTROY" "END" "INIT" "UNITCHECK"
+                 "__END__" "__DATA__" "break" "catch" "chomp" "chop" "default"
+                 "defined" "delete" "do" "each" "else" "elsif" "eval"
+                 "evalbytes" "exists" "finally" "for" "foreach" "format" "given"
+                 "goto" "grep" "if" "keys" "last" "local" "m" "map" "my" "next"
+                 "no" "our" "package" "pop" "pos" "print" "printf" "prototype"
+                 "push" "q" "qq" "qw" "qx" "redo" "return" "s" "say" "scalar"
+                 "shift" "sort" "splice" "split" "state" "study" "sub" "tie"
+                 "tied" "tr" "try" "undef" "unless" "unshift" "untie" "until"
+                 "use" "when" "while" "y"))
+              "\\)\\>")
 	     2 ''cperl-nonoverridable-face) ; unbound as var, so: doubly quoted
 	    ;;		(mapconcat #'identity
 	    ;;			   '("#endif" "#else" "#ifdef" "#ifndef" "#if"
@@ -8209,7 +8150,7 @@ function returns nil."
     (or prop (setq prop 'in-pod))
     (or s (setq s (point-min)))
     (or end (setq end (point-max)))
-    (cperl-update-syntaxification end end)
+    (cperl-update-syntaxification end)
     (save-excursion
       (goto-char (setq pos s))
       (while (and cont (< pos end))
@@ -8225,7 +8166,7 @@ function returns nil."
 Return nil if the point is not in a HERE document region.  If POD is non-nil,
 will return a POD section if point is in a POD section."
   (or pos (setq pos (point)))
-  (cperl-update-syntaxification pos pos)
+  (cperl-update-syntaxification pos)
   (if (or (eq 'here-doc  (get-text-property pos 'syntax-type))
 	  (and pod
 	       (eq 'pod (get-text-property pos 'syntax-type))))
@@ -8295,7 +8236,7 @@ start with default arguments, then refine the slowdown regions."
       (forward-line step)
       (setq l (+ l step))
       (setq c (1+ c))
-      (cperl-update-syntaxification (point) (point))
+      (cperl-update-syntaxification (point))
       (setq delta (- (- tt (setq tt (funcall timems)))) tot (+ tot delta))
       (message "to %s:%6s,%7s" l delta tot))
     tot))
@@ -8405,19 +8346,12 @@ do extra unwind via `cperl-unwind-to-safe'."
     (setq end (point)))
   (font-lock-default-fontify-region beg end loudly))
 
-(defvar cperl-d-l nil)
-(defvar edebug-backtrace-buffer)        ;FIXME: Why?
 (defun cperl-fontify-syntaxically (end)
   ;; Some vars for debugging only
   ;; (message "Syntaxifying...")
   (let ((dbg (point)) (iend end) (idone cperl-syntax-done-to)
 	(istate (car cperl-syntax-state))
-	start from-start edebug-backtrace-buffer)
-    (if (eq cperl-syntaxify-by-font-lock 'backtrace)
-	(progn
-	  (require 'edebug)
-	  (let ((f 'edebug-backtrace))
-	    (funcall f))))	; Avoid compile-time warning
+	start from-start)
     (or cperl-syntax-done-to
 	(setq cperl-syntax-done-to (point-min)
 	      from-start t))
@@ -8473,16 +8407,9 @@ do extra unwind via `cperl-unwind-to-safe'."
   (if cperl-syntax-done-to
       (setq cperl-syntax-done-to (min cperl-syntax-done-to beg))))
 
-(defun cperl-update-syntaxification (from to)
-  (cond
-   ((not cperl-use-syntax-table-text-property) nil)
-   ((fboundp 'syntax-propertize) (syntax-propertize to))
-   ((and cperl-syntaxify-by-font-lock
-         (or (null cperl-syntax-done-to)
-             (< cperl-syntax-done-to to)))
-    (save-excursion
-      (goto-char from)
-      (cperl-fontify-syntaxically to)))))
+(defun cperl-update-syntaxification (to)
+  (when cperl-use-syntax-table-text-property
+    (syntax-propertize to)))
 
 (defvar cperl-version
   (let ((v  "Revision: 6.2"))

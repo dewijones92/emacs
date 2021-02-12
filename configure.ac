@@ -409,19 +409,18 @@ dnl This should be the last --with option, because --with-x is
 dnl added later on when we find the file name of X, and it's best to
 dnl keep them together visually.
 AC_ARG_WITH([x-toolkit],[AS_HELP_STRING([--with-x-toolkit=KIT],
- [use an X toolkit (KIT one of: yes or gtk, gtk2, gtk3, lucid or athena, motif, no)])],
+ [use an X toolkit (KIT one of: yes or gtk, gtk2, gtk3, lucid or athena, no)])],
 [	  case "${withval}" in
 	    y | ye | yes )	val=gtk ;;
 	    n | no )		val=no  ;;
 	    l | lu | luc | luci | lucid )	val=lucid ;;
 	    a | at | ath | athe | athen | athena )	val=athena ;;
-	    m | mo | mot | moti | motif )	val=motif ;;
 	    g | gt | gtk  )	val=gtk ;;
 	    gtk2  )	val=gtk2 ;;
 	    gtk3  )	val=gtk3 ;;
 	    * )
 AC_MSG_ERROR(['--with-x-toolkit=$withval' is invalid;
-this option's value should be 'yes', 'no', 'lucid', 'athena', 'motif', 'gtk',
+this option's value should be 'yes', 'no', 'lucid', 'athena', 'gtk',
 'gtk2' or 'gtk3'.  'yes' and 'gtk' are synonyms.
 'athena' and 'lucid' are synonyms.])
 	    ;;
@@ -460,7 +459,7 @@ OPTION_DEFAULT_ON([harfbuzz],[don't use HarfBuzz for text shaping])
 OPTION_DEFAULT_ON([libotf],[don't use libotf for OpenType font support])
 OPTION_DEFAULT_ON([m17n-flt],[don't use m17n-flt for text shaping])
 
-OPTION_DEFAULT_ON([toolkit-scroll-bars],[don't use Motif/Xaw3d/GTK toolkit scroll bars])
+OPTION_DEFAULT_ON([toolkit-scroll-bars],[don't use Xaw3d/GTK toolkit scroll bars])
 OPTION_DEFAULT_ON([xaw3d],[don't use Xaw3d])
 OPTION_DEFAULT_ON([xim],[at runtime, default X11 XIM to off])
 OPTION_DEFAULT_ON([xdbe],[don't use X11 double buffering support])
@@ -2252,7 +2251,7 @@ if test "$window_system" = none && test "X$with_x" != "Xno"; then
    then
         AC_MSG_ERROR([You seem to be running X, but no X development libraries
 were found.  You should install the relevant development files for X
-and for the toolkit you want, such as Gtk+ or Motif.  Also make
+and for the toolkit you want, such as Gtk+.  Also make
 sure you have development files for image handling, i.e.
 tiff, gif, jpeg, png and xpm.
 If you are sure you want Emacs compiled without X window support, pass
@@ -3291,7 +3290,12 @@ fi
 # Check for XRender
 HAVE_XRENDER=no
 if test "${HAVE_X11}" = "yes"; then
-  AC_CHECK_HEADER([X11/extensions/Xrender.h],
+  AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM(
+       [[#include <X11/Intrinsic.h>
+	 #include <X11/extensions/Xrender.h>
+       ]],
+       [[return !XRenderQueryExtension;]])],
     [AC_CHECK_LIB([Xrender], [XRenderQueryExtension], [HAVE_XRENDER=yes])])
   if test $HAVE_XRENDER = yes; then
     XRENDER_LIBS="-lXrender"
@@ -4388,6 +4392,18 @@ TERMCAP_OBJ=tparam.o
 if test $TERMINFO = yes; then
   AC_DEFINE(TERMINFO, 1, [Define to 1 if you use terminfo instead of termcap.])
   TERMCAP_OBJ=terminfo.o
+  AC_CACHE_CHECK([whether $LIBS_TERMCAP library defines BC],
+    [emacs_cv_terminfo_defines_BC],
+    [OLD_LIBS=$LIBS
+     LIBS="$LIBS $LIBS_TERMCAP"
+     AC_LINK_IFELSE([AC_LANG_PROGRAM([[extern char *BC;]], [[return !*BC;]])],
+       [emacs_cv_terminfo_defines_BC=yes],
+       [emacs_cv_terminfo_defines_BC=no])
+     LIBS=$OLD_LIBS])
+  if test "$emacs_cv_terminfo_defines_BC" = yes; then
+    AC_DEFINE([TERMINFO_DEFINES_BC], 1, [Define to 1 if the
+      terminfo library defines the variables BC, PC, and UP.])
+  fi
 fi
 if test "X$LIBS_TERMCAP" = "X-lncurses"; then
   AC_DEFINE(USE_NCURSES, 1, [Define to 1 if you use ncurses.])
@@ -4926,7 +4942,7 @@ case $opsys in
     AC_DEFINE(FIRST_PTY_LETTER, ['z'])
     AC_DEFINE(PTY_NAME_SPRINTF, [strcpy (pty_name, "/dev/ptmx");])
     dnl Push various streams modules onto a PTY channel.  Used in process.c.
-    AC_DEFINE(SETUP_SLAVE_PTY, [if (ioctl (forkin, I_PUSH, "ptem") == -1) fatal ("ioctl I_PUSH ptem"); if (ioctl (forkin, I_PUSH, "ldterm") == -1) fatal ("ioctl I_PUSH ldterm"); if (ioctl (forkin, I_PUSH, "ttcompat") == -1) fatal ("ioctl I_PUSH ttcompat");], [How to set up a slave PTY, if needed.])
+    AC_DEFINE(SETUP_SLAVE_PTY, [if (ioctl (std_in, I_PUSH, "ptem") == -1) fatal ("ioctl I_PUSH ptem"); if (ioctl (std_in, I_PUSH, "ldterm") == -1) fatal ("ioctl I_PUSH ldterm"); if (ioctl (std_in, I_PUSH, "ttcompat") == -1) fatal ("ioctl I_PUSH ttcompat");], [How to set up a slave PTY, if needed.])
     ;;
 esac
 
@@ -5491,7 +5507,7 @@ case "$opsys" in
    if test "$HAVE_NS" = "yes"; then
      libs_nsgui="-framework AppKit"
      if test "$NS_IMPL_COCOA" = "yes"; then
-        libs_nsgui="$libs_nsgui -framework IOKit -framework Carbon"
+        libs_nsgui="$libs_nsgui -framework IOKit -framework Carbon -framework IOSurface"
      fi
    else
      libs_nsgui=
@@ -5640,6 +5656,12 @@ else
   ACL_SUMMARY=no
 fi
 
+if test -z "$GMP_H"; then
+  HAVE_GMP=yes
+else
+  HAVE_GMP=no
+fi
+
 emacs_standard_dirs='Standard dirs'
 AS_ECHO(["
 Configured for '${canonical}'.
@@ -5654,12 +5676,14 @@ Configured for '${canonical}'.
   Where do we find X Windows header files?                ${x_includes:-$emacs_standard_dirs}
   Where do we find X Windows libraries?                   ${x_libraries:-$emacs_standard_dirs}"])
 
+#### Please respect alphabetical ordering when making additions.
 optsep=
 emacs_config_features=
-for opt in XAW3D XPM JPEG TIFF GIF PNG RSVG CAIRO IMAGEMAGICK SOUND GPM DBUS \
-  GCONF GSETTINGS GLIB NOTIFY ACL LIBSELINUX GNUTLS LIBXML2 FREETYPE HARFBUZZ M17N_FLT \
-  LIBOTF XFT ZLIB TOOLKIT_SCROLL_BARS X_TOOLKIT OLDXMENU X11 XDBE XIM \
-  NS MODULES THREADS XWIDGETS LIBSYSTEMD JSON PDUMPER UNEXEC LCMS2 GMP; do
+for opt in ACL CAIRO DBUS FREETYPE GCONF GIF GLIB GMP GNUTLS GPM GSETTINGS \
+ HARFBUZZ IMAGEMAGICK JPEG JSON LCMS2 LIBOTF LIBSELINUX LIBSYSTEMD LIBXML2 \
+ M17N_FLT MODULES NOTIFY NS OLDXMENU PDUMPER PNG RSVG SOUND THREADS TIFF \
+ TOOLKIT_SCROLL_BARS UNEXEC X11 XAW3D XDBE XFT XIM XPM XWIDGETS X_TOOLKIT \
+ ZLIB; do
 
     case $opt in
       PDUMPER) val=${with_pdumper} ;;
@@ -5696,11 +5720,6 @@ done
 AC_DEFINE_UNQUOTED(EMACS_CONFIG_FEATURES, "${emacs_config_features}",
   [Summary of some of the main features enabled by configure.])
 
-if test -z "$GMP_H"; then
-  HAVE_GMP=yes
-else
-  HAVE_GMP=no
-fi
 AS_ECHO(["  Does Emacs use -lXaw3d?                                 ${HAVE_XAW3D}
   Does Emacs use -lXpm?                                   ${HAVE_XPM}
   Does Emacs use -ljpeg?                                  ${HAVE_JPEG}
@@ -5878,7 +5897,7 @@ if test $AUTO_DEPEND = yes; then
      AS_MKDIR_P([$dir/deps])
    done
 fi
-if $gl_gnulib_enabled_scratch_buffer; then
+if $gl_gnulib_enabled_dynarray || $gl_gnulib_enabled_scratch_buffer; then
   AS_MKDIR_P([lib/malloc])
   if test $AUTO_DEPEND = yes; then
     AS_MKDIR_P([lib/deps/malloc])

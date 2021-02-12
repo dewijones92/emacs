@@ -1819,7 +1819,9 @@ a variable local to the current buffer for one particular use, use
 while setting up a new major mode, unless they have a `permanent-local'
 property.
 
-The function `default-value' gets the default value and `set-default' sets it.  */)
+The function `default-value' gets the default value and `set-default' sets it.
+
+See also `defvar-local'.  */)
   (register Lisp_Object variable)
 {
   struct Lisp_Symbol *sym;
@@ -3760,6 +3762,7 @@ syms_of_data (void)
   DEFSYM (Qbuffer_read_only, "buffer-read-only");
   DEFSYM (Qtext_read_only, "text-read-only");
   DEFSYM (Qmark_inactive, "mark-inactive");
+  DEFSYM (Qinhibited_interaction, "inhibited-interaction");
 
   DEFSYM (Qlistp, "listp");
   DEFSYM (Qconsp, "consp");
@@ -3844,6 +3847,8 @@ syms_of_data (void)
   PUT_ERROR (Qbuffer_read_only, error_tail, "Buffer is read-only");
   PUT_ERROR (Qtext_read_only, pure_cons (Qbuffer_read_only, error_tail),
 	     "Text is read-only");
+  PUT_ERROR (Qinhibited_interaction, error_tail,
+	     "User interaction while inhibited");
 
   DEFSYM (Qrange_error, "range-error");
   DEFSYM (Qdomain_error, "domain-error");

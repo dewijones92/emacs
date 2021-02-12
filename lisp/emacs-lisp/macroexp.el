@@ -127,7 +127,7 @@ and also to avoid outputting the warning during normal execution."
     (cond
      ((null msg) form)
      ((macroexp--compiling-p)
-      (if (gethash form macroexp--warned)
+      (if (and (consp form) (gethash form macroexp--warned))
           ;; Already wrapped this exp with a warning: avoid inf-looping
           ;; where we keep adding the same warning onto `form' because
           ;; macroexpand-all gets right back to macroexpanding `form'.
@@ -138,9 +138,10 @@ and also to avoid outputting the warning during normal execution."
            ,form)))
      (t
       (unless compile-only
-        (message "%s%s" (if (stringp load-file-name)
-                            (concat (file-relative-name load-file-name) ": ")
-                          "")
+        (message "%sWarning: %s"
+                 (if (stringp load-file-name)
+                     (concat (file-relative-name load-file-name) ": ")
+                   "")
                  msg))
       form))))
 
@@ -180,8 +181,9 @@ and also to avoid outputting the warning during normal execution."
 
 (defun macroexp-macroexpand (form env)
   "Like `macroexpand' but checking obsolescence."
-  (let ((new-form
-         (macroexpand form env)))
+  (let* ((macroexpand-all-environment env)
+         (new-form
+          (macroexpand form env)))
     (if (and (not (eq form new-form))   ;It was a macro call.
              (car-safe form)
              (symbolp (car form))
@@ -197,6 +199,69 @@ and also to avoid outputting the warning during normal execution."
                 "alias" "macro"))
            new-form))
       new-form)))
+
+(defun macroexp--unfold-lambda (form &optional name)
+  ;; In lexical-binding mode, let and functions don't bind vars in the same way
+  ;; (let obey special-variable-p, but functions don't).  But luckily, this
+  ;; doesn't matter here, because function's behavior is underspecified so it
+  ;; can safely be turned into a `let', even though the reverse is not true.
+  (or name (setq name "anonymous lambda"))
+  (let* ((lambda (car form))
+         (values (cdr form))
+         (arglist (nth 1 lambda))
+         (body (cdr (cdr lambda)))
+         optionalp restp
+         bindings)
+    (if (and (stringp (car body)) (cdr body))
+        (setq body (cdr body)))
+    (if (and (consp (car body)) (eq 'interactive (car (car body))))
+        (setq body (cdr body)))
+    ;; FIXME: The checks below do not belong in an optimization phase.
+    (while arglist
+      (cond ((eq (car arglist) '&optional)
+             ;; ok, I'll let this slide because funcall_lambda() does...
+             ;; (if optionalp (error "multiple &optional keywords in %s" name))
+             (if restp (error "&optional found after &rest in %s" name))
+             (if (null (cdr arglist))
+                 (error "nothing after &optional in %s" name))
+             (setq optionalp t))
+            ((eq (car arglist) '&rest)
+             ;; ...but it is by no stretch of the imagination a reasonable
+             ;; thing that funcall_lambda() allows (&rest x y) and
+             ;; (&rest x &optional y) in arglists.
+             (if (null (cdr arglist))
+                 (error "nothing after &rest in %s" name))
+             (if (cdr (cdr arglist))
+                 (error "multiple vars after &rest in %s" name))
+             (setq restp t))
+            (restp
+             (setq bindings (cons (list (car arglist)
+                                        (and values (cons 'list values)))
+                                  bindings)
+                   values nil))
+            ((and (not optionalp) (null values))
+             (setq arglist nil values 'too-few))
+            (t
+             (setq bindings (cons (list (car arglist) (car values))
+                                  bindings)
+                   values (cdr values))))
+      (setq arglist (cdr arglist)))
+    (if values
+        (macroexp--warn-and-return
+         (format (if (eq values 'too-few)
+                     "attempt to open-code `%s' with too few arguments"
+                   "attempt to open-code `%s' with too many arguments")
+                 name)
+         form)
+
+      ;; The following leads to infinite recursion when loading a
+      ;; file containing `(defsubst f () (f))', and then trying to
+      ;; byte-compile that file.
+      ;;(setq body (mapcar 'byte-optimize-form body)))
+
+      (if bindings
+          `(let ,(nreverse bindings) . ,body)
+        (macroexp-progn body)))))
 
 (defun macroexp--expand-all (form)
   "Expand all macros in FORM.
@@ -239,9 +304,18 @@ Assumes the caller has bound `macroexpand-all-environment'."
                        form))
       (`(,(and fun `(lambda . ,_)) . ,args)
        ;; Embedded lambda in function position.
-       (macroexp--cons (macroexp--all-forms fun 2)
-                       (macroexp--all-forms args)
-                       form))
+       ;; If the byte-optimizer is loaded, try to unfold this,
+       ;; i.e. rewrite it to (let (<args>) <body>).  We'd do it in the optimizer
+       ;; anyway, but doing it here (i.e. earlier) can sometimes avoid the
+       ;; creation of a closure, thus resulting in much better code.
+       (let ((newform (macroexp--unfold-lambda form)))
+	 (if (eq newform form)
+	     ;; Unfolding failed for some reason, avoid infinite recursion.
+	     (macroexp--cons (macroexp--all-forms fun 2)
+                             (macroexp--all-forms args)
+                             form)
+	   (macroexp--expand-all newform))))
+
       ;; The following few cases are for normal function calls that
       ;; are known to funcall one of their arguments.  The byte
       ;; compiler has traditionally handled these functions specially
@@ -255,17 +329,21 @@ Assumes the caller has bound `macroexpand-all-environment'."
        (macroexp--warn-and-return
         (format "%s quoted with ' rather than with #'"
                 (list 'lambda (nth 1 f) '...))
-        (macroexp--expand-all `(,fun ,f . ,args))))
+        (macroexp--expand-all `(,fun #',f . ,args))))
       ;; Second arg is a function:
       (`(,(and fun (or 'sort)) ,arg1 ',(and f `(lambda . ,_)) . ,args)
        (macroexp--warn-and-return
         (format "%s quoted with ' rather than with #'"
                 (list 'lambda (nth 1 f) '...))
-        (macroexp--expand-all `(,fun ,arg1 ,f . ,args))))
-      (`(funcall #',(and f (pred symbolp)) . ,args)
-       ;; Rewrite (funcall #'foo bar) to (foo bar), in case `foo'
-       ;; has a compiler-macro.
-       (macroexp--expand-all `(,f . ,args)))
+        (macroexp--expand-all `(,fun ,arg1 #',f . ,args))))
+      (`(funcall ,exp . ,args)
+       (let ((eexp (macroexp--expand-all exp))
+             (eargs (macroexp--all-forms args)))
+         ;; Rewrite (funcall #'foo bar) to (foo bar), in case `foo'
+         ;; has a compiler-macro, or to unfold it.
+         (pcase eexp
+           (`#',f (macroexp--expand-all `(,f . ,eargs)))
+           (_ `(funcall ,eexp . ,eargs)))))
       (`(,func . ,_)
        ;; Macro expand compiler macros.  This cannot be delayed to
        ;; byte-optimize-form because the output of the compiler-macro can
@@ -358,12 +436,12 @@ Never returns an empty list."
      (t
       `(cond (,test ,@(macroexp-unprogn then))
              (,(nth 1 else) ,@(macroexp-unprogn (nth 2 else)))
-             (t ,@(nthcdr 3 else))))))
+             ,@(let ((def (nthcdr 3 else))) (if def `((t ,@def))))))))
    ((eq (car-safe else) 'cond)
     `(cond (,test ,@(macroexp-unprogn then)) ,@(cdr else)))
    ;; Invert the test if that lets us reduce the depth of the tree.
    ((memq (car-safe then) '(if cond)) (macroexp-if `(not ,test) else then))
-   (t `(if ,test ,then ,@(macroexp-unprogn else)))))
+   (t `(if ,test ,then ,@(if else (macroexp-unprogn else))))))
 
 (defmacro macroexp-let2 (test sym exp &rest body)
   "Evaluate BODY with SYM bound to an expression for EXP's value.
@@ -479,6 +557,50 @@ itself or not."
 	       (memq v '(nil t))))
       v
     (list 'quote v)))
+
+(defun macroexp--fgrep (bindings sexp)
+  "Return those of the BINDINGS which might be used in SEXP.
+It is used as a poor-man's \"free variables\" test.  It differs from a true
+test of free variables in the following ways:
+- It does not distinguish variables from functions, so it can be used
+  both to detect whether a given variable is used by SEXP and to
+  detect whether a given function is used by SEXP.
+- It does not actually know ELisp syntax, so it only looks for the presence
+  of symbols in SEXP and can't distinguish if those symbols are truly
+  references to the given variable (or function).  That can make the result
+  include bindings which actually aren't used.
+- For the same reason it may cause the result to fail to include bindings
+  which will be used if SEXP is not yet fully macro-expanded and the
+  use of the binding will only be revealed by macro expansion."
+  (let ((res '())
+        ;; Cyclic code should not happen, but code can contain cyclic data :-(
+        (seen (make-hash-table :test #'eq))
+        (sexpss (list (list sexp))))
+    ;; Use a nested while loop to reduce the amount of heap allocations for
+    ;; pushes to `sexpss' and the `gethash' overhead.
+    (while (and sexpss bindings)
+      (let ((sexps (pop sexpss)))
+        (unless (gethash sexps seen)
+          (puthash sexps t seen) ;; Using `setf' here causes bootstrap problems.
+          (if (vectorp sexps) (setq sexps (mapcar #'identity sexps)))
+          (let ((tortoise sexps) (skip t))
+            (while sexps
+              (let ((sexp (if (consp sexps) (pop sexps)
+                            (prog1 sexps (setq sexps nil)))))
+                (if skip
+                    (setq skip nil)
+                  (setq tortoise (cdr tortoise))
+                  (if (eq tortoise sexps)
+                      (setq sexps nil) ;; Found a cycle: we're done!
+                    (setq skip t)))
+                (cond
+                 ((or (consp sexp) (vectorp sexp)) (push sexp sexpss))
+                 (t
+                  (let ((tmp (assq sexp bindings)))
+                    (when tmp
+                      (push tmp res)
+                      (setq bindings (remove tmp bindings))))))))))))
+    res))
 
 ;;; Load-time macro-expansion.
 

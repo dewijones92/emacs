@@ -1,4 +1,4 @@
-;;; korean.el --- support for Korean -*- coding: utf-8 -*-
+;;; korean.el --- support for Korean -*- coding: utf-8; lexical-binding: t; -*-
 
 ;; Copyright (C) 1998, 2001-2021 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
@@ -92,10 +92,10 @@ and the following key bindings are available within Korean input methods:
        (pattern (concat choseong jungseong jongseong)))
   (set-char-table-range composition-function-table
                         '(#x1100 . #x115F)
-                        (list (vector pattern 0 'font-shape-gstring)))
+                        (list (vector pattern 0 #'font-shape-gstring)))
   (set-char-table-range composition-function-table
                         '(#xA960 . #xA97C)
-                        (list (vector pattern 0 'font-shape-gstring))))
+                        (list (vector pattern 0 #'font-shape-gstring))))
 
 (provide 'korean)
 

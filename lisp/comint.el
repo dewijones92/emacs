@@ -700,8 +700,7 @@ Entry to this mode runs the hooks on `comint-mode-hook'."
   ;; https://lists.gnu.org/r/emacs-devel/2007-08/msg00827.html
   ;;
   ;; This makes it really work to keep point at the bottom.
-  ;; (make-local-variable 'scroll-conservatively)
-  ;; (setq scroll-conservatively 10000)
+  ;; (setq-local scroll-conservatively 10000)
   (add-hook 'pre-command-hook 'comint-preinput-scroll-to-bottom t t)
   (make-local-variable 'comint-ptyp)
   (make-local-variable 'comint-process-echoes)
@@ -979,6 +978,7 @@ See also `comint-input-ignoredups' and `comint-write-input-ring'."
 		(ring (make-ring ring-size))
                 ;; Use possibly buffer-local values of these variables.
                 (ring-separator comint-input-ring-separator)
+                (ring-file-prefix comint-input-ring-file-prefix)
                 (history-ignore comint-input-history-ignore)
                 (ignoredups comint-input-ignoredups))
 	   (with-temp-buffer
@@ -990,24 +990,15 @@ See also `comint-input-ignoredups' and `comint-write-input-ring'."
                (while (and (< count comint-input-ring-size)
                            (re-search-backward ring-separator nil t)
                            (setq end (match-beginning 0)))
-                 (setq start
-                       (if (re-search-backward ring-separator nil t)
-                           (progn
-                             (when (and comint-input-ring-file-prefix
-                                        (looking-at
-                                         comint-input-ring-file-prefix))
-                               ;; Skip zsh extended_history stamps
-                               (goto-char (match-end 0)))
-                             (match-end 0))
-                         (progn
-                           (goto-char (point-min))
-                           (when (and comint-input-ring-file-prefix
-                                      (looking-at
-                                       comint-input-ring-file-prefix))
-                             (goto-char (match-end 0)))
-                           (point))))
+                 (goto-char (if (re-search-backward ring-separator nil t)
+                                (match-end 0)
+                              (point-min)))
+                 (when (and ring-file-prefix
+                            (looking-at ring-file-prefix))
+                   ;; Skip zsh extended_history stamps
+                   (goto-char (match-end 0)))
+                 (setq start (point))
                  (setq history (buffer-substring start end))
-                 (goto-char start)
                  (when (and (not (string-match history-ignore history))
 			    (or (null ignoredups)
 				(ring-empty-p ring)
@@ -2261,15 +2252,23 @@ This function could be on `comint-output-filter-functions' or bound to a key."
   "Strip trailing `^M' characters from the current output group.
 This function could be on `comint-output-filter-functions' or bound to a key."
   (interactive)
-  (let ((pmark (process-mark (get-buffer-process (current-buffer)))))
-    (save-excursion
-      (condition-case nil
-	  (goto-char
-	   (if (called-interactively-p 'interactive)
-	       comint-last-input-end comint-last-output-start))
-	(error nil))
-      (while (re-search-forward "\r+$" pmark t)
-	(replace-match "" t t)))))
+  (let ((process (get-buffer-process (current-buffer))))
+    (if (not process)
+        ;; This function may be used in
+        ;; `comint-output-filter-functions', and in that case, if
+        ;; there's no process, then we should do nothing.  If
+        ;; interactive, report an error.
+        (when (called-interactively-p 'interactive)
+          (error "No process in the current buffer"))
+      (let ((pmark (process-mark process)))
+        (save-excursion
+          (condition-case nil
+	      (goto-char
+	       (if (called-interactively-p 'interactive)
+	           comint-last-input-end comint-last-output-start))
+	    (error nil))
+          (while (re-search-forward "\r+$" pmark t)
+	    (replace-match "" t t)))))))
 (define-obsolete-function-alias 'shell-strip-ctrl-m #'comint-strip-ctrl-m "27.1")
 
 (defun comint-show-maximum-output ()
@@ -2383,12 +2382,11 @@ a buffer local variable."
 ;; saved -- typically passwords to ftp, telnet, or somesuch.
 ;; Just enter m-x comint-send-invisible and type in your line.
 
-(defvar comint-password-function nil
+(defvar-local comint-password-function nil
   "Abnormal hook run when prompted for a password.
 This function gets one argument, a string containing the prompt.
 It may return a string containing the password, or nil if normal
 password prompting should occur.")
-(make-variable-buffer-local 'comint-password-function)
 
 (defun comint-send-invisible (&optional prompt)
   "Read a string without echoing.
@@ -3871,7 +3869,11 @@ REGEXP-GROUP is the regular expression group in REGEXP to use."
 	(push (buffer-substring-no-properties
                (match-beginning regexp-group)
                (match-end regexp-group))
-              results))
+              results)
+        (when (zerop (length (match-string 0)))
+          ;; If the regexp can be empty (for instance, "^.*$"), we
+          ;; don't advance, so ensure forward progress.
+	  (forward-line 1)))
       (nreverse results))))
 
 ;; Converting process modes to use comint mode

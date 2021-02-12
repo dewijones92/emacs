@@ -289,7 +289,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 /* Size of hash table of realized faces in face caches (should be a
    prime number).  */
 
-#define FACE_CACHE_BUCKETS_SIZE 1001
+#define FACE_CACHE_BUCKETS_SIZE 1009
 
 char unspecified_fg[] = "unspecified-fg", unspecified_bg[] = "unspecified-bg";
 
@@ -3293,7 +3293,8 @@ FRAME 0 means change the face on all frames, and change the default
 		}
 	      else if (EQ (k, QCstyle))
 		{
-		  if (!EQ (v, Qpressed_button) && !EQ (v, Qreleased_button))
+		  if (!EQ (v, Qpressed_button) && !EQ (v, Qreleased_button)
+		      && !EQ(v, Qflat_button))
 		    break;
 		}
 	      else
@@ -4913,6 +4914,7 @@ lookup_basic_face (struct window *w, struct frame *f, int face_id)
     case WINDOW_DIVIDER_FIRST_PIXEL_FACE_ID:	name = Qwindow_divider_first_pixel;	break;
     case WINDOW_DIVIDER_LAST_PIXEL_FACE_ID:	name = Qwindow_divider_last_pixel;	break;
     case INTERNAL_BORDER_FACE_ID:	name = Qinternal_border; 	break;
+    case CHILD_FRAME_BORDER_FACE_ID:	name = Qchild_frame_border; 	break;
 
     default:
       emacs_abort (); /* the caller is supposed to pass us a basic face id */
@@ -5619,6 +5621,7 @@ realize_basic_faces (struct frame *f)
       realize_named_face (f, Qwindow_divider_last_pixel,
 			  WINDOW_DIVIDER_LAST_PIXEL_FACE_ID);
       realize_named_face (f, Qinternal_border, INTERNAL_BORDER_FACE_ID);
+      realize_named_face (f, Qchild_frame_border, CHILD_FRAME_BORDER_FACE_ID);
       realize_named_face (f, Qtab_bar, TAB_BAR_FACE_ID);
       realize_named_face (f, Qtab_line, TAB_LINE_FACE_ID);
 
@@ -6031,6 +6034,10 @@ realize_gui_face (struct face_cache *cache, Lisp_Object attrs[LFACE_VECTOR_SIZE]
 		face->box = FACE_RAISED_BOX;
 	      else if (EQ (value, Qpressed_button))
 		face->box = FACE_SUNKEN_BOX;
+	      else if (EQ (value, Qflat_button)) {
+		face->box = FACE_SIMPLE_BOX;
+		face->box_color = face->background;
+	      }
 	    }
 	}
     }
@@ -6919,6 +6926,7 @@ syms_of_xfaces (void)
   DEFSYM (Qwave, "wave");
   DEFSYM (Qreleased_button, "released-button");
   DEFSYM (Qpressed_button, "pressed-button");
+  DEFSYM (Qflat_button, "flat-button");
   DEFSYM (Qnormal, "normal");
   DEFSYM (Qextra_light, "extra-light");
   DEFSYM (Qlight, "light");
@@ -6967,6 +6975,7 @@ syms_of_xfaces (void)
   DEFSYM (Qwindow_divider_first_pixel, "window-divider-first-pixel");
   DEFSYM (Qwindow_divider_last_pixel, "window-divider-last-pixel");
   DEFSYM (Qinternal_border, "internal-border");
+  DEFSYM (Qchild_frame_border, "child-frame-border");
 
   /* TTY color-related functions (defined in tty-colors.el).  */
   DEFSYM (Qtty_color_desc, "tty-color-desc");

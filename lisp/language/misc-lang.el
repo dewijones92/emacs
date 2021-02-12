@@ -1,4 +1,4 @@
-;;; misc-lang.el --- support for miscellaneous languages (characters)
+;;; misc-lang.el --- support for miscellaneous languages (characters)  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
@@ -137,9 +137,9 @@ thin (i.e. 1-dot width) space."
  composition-function-table
  '(#x600 . #x74F)
  (list (vector "[\u200C\u200D][\u0600-\u074F\u200C\u200D]+"
-               1 'arabic-shape-gstring)
+               1 #'arabic-shape-gstring)
        (vector "[\u0600-\u074F\u200C\u200D]+"
-               0 'arabic-shape-gstring)))
+               0 #'arabic-shape-gstring)))
 
 ;; The Egyptian Hieroglyph Format Controls were introduced in Unicode
 ;; Standard v12.0.  Apparently, they are not yet well supported in
@@ -186,13 +186,13 @@ thin (i.e. 1-dot width) space."
                  ;; doesn't support these controls, the glyphs are
                  ;; displayed individually, and not as a single
                  ;; grapheme cluster.
-                 1 'font-shape-gstring)))
+                 1 #'font-shape-gstring)))
   ;; Grouping controls
   (set-char-table-range
    composition-function-table
    #x13437
    (list (vector "\U00013437[\U00013000-\U0001343F]+"
-                 0 'egyptian-shape-grouping))))
+                 0 #'egyptian-shape-grouping))))
 
 (provide 'misc-lang)
 

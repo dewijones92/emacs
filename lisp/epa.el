@@ -359,8 +359,8 @@ DOC is documentation text to insert at the start."
 
     ;; Find the end of the documentation text at the start.
     ;; Set POINT to where it ends, or nil if ends at eob.
-    (unless (get-text-property point 'epa-list-keys)
-      (setq point (next-single-property-change point 'epa-list-keys)))
+    (unless (get-text-property point 'epa-key)
+      (setq point (next-single-property-change point 'epa-key)))
 
     ;; If caller specified documentation text for that, replace the old
     ;; documentation text (if any) with what was specified.
@@ -379,8 +379,7 @@ DOC is documentation text to insert at the start."
       (goto-char point))
 
     (epa--insert-keys (epg-list-keys context name secret)))
-  (make-local-variable 'epa-list-keys-arguments)
-  (setq epa-list-keys-arguments (list name secret))
+  (setq-local epa-list-keys-arguments (list name secret))
   (goto-char (point-min))
   (pop-to-buffer (current-buffer)))
 
@@ -500,8 +499,7 @@ If SECRET is non-nil, list secret keys instead of public keys."
 		     (format "*Key*%s" (epg-sub-key-id primary-sub-key)))))
     (set-buffer (cdr entry))
     (epa-key-mode)
-    (make-local-variable 'epa-key)
-    (setq epa-key key)
+    (setq-local epa-key key)
     (erase-buffer)
     (setq pointer (epg-key-user-id-list key))
     (while pointer

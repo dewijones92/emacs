@@ -59,22 +59,6 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 Lisp_Object current_global_map;	/* Current global keymap.  */
 
-Lisp_Object global_map;		/* Default global key bindings.  */
-
-Lisp_Object meta_map;		/* The keymap used for globally bound
-				   ESC-prefixed default commands.  */
-
-Lisp_Object control_x_map;	/* The keymap used for globally bound
-				   C-x-prefixed default commands.  */
-
-				/* The keymap used by the minibuf for local
-				   bindings when spaces are allowed in the
-				   minibuf.  */
-
-				/* The keymap used by the minibuf for local
-				   bindings when spaces are not encouraged
-				   in the minibuf.  */
-
 /* Alist of elements like (DEL . "\d").  */
 static Lisp_Object exclude_keys;
 
@@ -138,19 +122,6 @@ in case you use it as a menu with `x-popup-menu'.  */)
       return list2 (Qkeymap, string);
     }
   return list1 (Qkeymap);
-}
-
-/* This function is used for installing the standard key bindings
-   at initialization time.
-
-   For example:
-
-   initial_define_key (control_x_map, Ctl('X'), "exchange-point-and-mark");  */
-
-void
-initial_define_key (Lisp_Object keymap, int key, const char *defname)
-{
-  store_in_keymap (keymap, make_fixnum (key), intern_c_string (defname));
 }
 
 void
@@ -1094,9 +1065,6 @@ binding KEY to DEF is added at the front of KEYMAP.  */)
   if (length == 0)
     return Qnil;
 
-  if (SYMBOLP (def) && !EQ (Vdefine_key_rebound_commands, Qt))
-    Vdefine_key_rebound_commands = Fcons (def, Vdefine_key_rebound_commands);
-
   int meta_bit = (VECTORP (key) || (STRINGP (key) && STRING_MULTIBYTE (key))
 		  ? meta_modifier : 0x80);
 
@@ -1675,39 +1643,6 @@ specified buffer position instead of point are used.
 
 /* GC is possible in this function if it autoloads a keymap.  */
 
-DEFUN ("local-key-binding", Flocal_key_binding, Slocal_key_binding, 1, 2, 0,
-       doc: /* Return the binding for command KEYS in current local keymap only.
-KEYS is a string or vector, a sequence of keystrokes.
-The binding is probably a symbol with a function definition.
-
-If optional argument ACCEPT-DEFAULT is non-nil, recognize default
-bindings; see the description of `lookup-key' for more details about this.  */)
-  (Lisp_Object keys, Lisp_Object accept_default)
-{
-  register Lisp_Object map = BVAR (current_buffer, keymap);
-  if (NILP (map))
-    return Qnil;
-  return Flookup_key (map, keys, accept_default);
-}
-
-/* GC is possible in this function if it autoloads a keymap.  */
-
-DEFUN ("global-key-binding", Fglobal_key_binding, Sglobal_key_binding, 1, 2, 0,
-       doc: /* Return the binding for command KEYS in current global keymap only.
-KEYS is a string or vector, a sequence of keystrokes.
-The binding is probably a symbol with a function definition.
-This function's return values are the same as those of `lookup-key'
-\(which see).
-
-If optional argument ACCEPT-DEFAULT is non-nil, recognize default
-bindings; see the description of `lookup-key' for more details about this.  */)
-  (Lisp_Object keys, Lisp_Object accept_default)
-{
-  return Flookup_key (current_global_map, keys, accept_default);
-}
-
-/* GC is possible in this function if it autoloads a keymap.  */
-
 DEFUN ("minor-mode-key-binding", Fminor_mode_key_binding, Sminor_mode_key_binding, 1, 2, 0,
        doc: /* Find the visible minor mode bindings of KEY.
 Return an alist of pairs (MODENAME . BINDING), where MODENAME is
@@ -1739,28 +1674,6 @@ bindings; see the description of `lookup-key' for more details about this.  */)
       }
 
   return Flist (j, maps);
-}
-
-DEFUN ("define-prefix-command", Fdefine_prefix_command, Sdefine_prefix_command, 1, 3, 0,
-       doc: /* Define COMMAND as a prefix command.  COMMAND should be a symbol.
-A new sparse keymap is stored as COMMAND's function definition and its
-value.
-This prepares COMMAND for use as a prefix key's binding.
-If a second optional argument MAPVAR is given, it should be a symbol.
-The map is then stored as MAPVAR's value instead of as COMMAND's
-value; but COMMAND is still defined as a function.
-The third optional argument NAME, if given, supplies a menu name
-string for the map.  This is required to use the keymap as a menu.
-This function returns COMMAND.  */)
-  (Lisp_Object command, Lisp_Object mapvar, Lisp_Object name)
-{
-  Lisp_Object map = Fmake_sparse_keymap (name);
-  Ffset (command, map);
-  if (!NILP (mapvar))
-    Fset (mapvar, map);
-  else
-    Fset (command, map);
-  return command;
 }
 
 DEFUN ("use-global-map", Fuse_global_map, Suse_global_map, 1, 1, 0,
@@ -1968,7 +1881,7 @@ then the value includes only maps for prefixes that start with PREFIX.  */)
 DEFUN ("key-description", Fkey_description, Skey_description, 1, 2, 0,
        doc: /* Return a pretty description of key-sequence KEYS.
 Optional arg PREFIX is the sequence of keys leading up to KEYS.
-For example, [?\C-x ?l] is converted into the string \"C-x l\".
+For example, [?\\C-x ?l] is converted into the string \"C-x l\".
 
 For an approximate inverse of this, see `kbd'.  */)
   (Lisp_Object keys, Lisp_Object prefix)
@@ -2217,11 +2130,21 @@ See `text-char-description' for describing character codes.  */)
     {
       if (NILP (no_angles))
 	{
-	  Lisp_Object result;
-	  char *buffer = SAFE_ALLOCA (sizeof "<>"
-				      + SBYTES (SYMBOL_NAME (key)));
-	  esprintf (buffer, "<%s>", SDATA (SYMBOL_NAME (key)));
-	  result = build_string (buffer);
+	  Lisp_Object namestr = SYMBOL_NAME (key);
+	  const char *sym = SSDATA (namestr);
+	  ptrdiff_t len = SBYTES (namestr);
+	  /* Find the extent of the modifier prefix, like "C-M-". */
+	  int i = 0;
+	  while (i < len - 3 && sym[i + 1] == '-' && strchr ("CMSsHA", sym[i]))
+	    i += 2;
+	  /* First I bytes of SYM are modifiers; put <> around the rest. */
+	  char *buffer = SAFE_ALLOCA (len + 3);
+	  memcpy (buffer, sym, i);
+	  buffer[i] = '<';
+	  memcpy (buffer + i + 1, sym + i, len - i);
+	  buffer [len + 1] = '>';
+	  buffer [len + 2] = '\0';
+	  Lisp_Object result = build_string (buffer);
 	  SAFE_FREE ();
 	  return result;
 	}
@@ -3195,20 +3118,8 @@ syms_of_keymap (void)
      Each one is the value of a Lisp variable, and is also
      pointed to by a C variable */
 
-  global_map = Fmake_keymap (Qnil);
-  Fset (intern_c_string ("global-map"), global_map);
-
-  current_global_map = global_map;
-  staticpro (&global_map);
+  current_global_map = Qnil;
   staticpro (&current_global_map);
-
-  meta_map = Fmake_keymap (Qnil);
-  Fset (intern_c_string ("esc-map"), meta_map);
-  Ffset (intern_c_string ("ESC-prefix"), meta_map);
-
-  control_x_map = Fmake_keymap (Qnil);
-  Fset (intern_c_string ("ctl-x-map"), control_x_map);
-  Ffset (intern_c_string ("Control-X-prefix"), control_x_map);
 
   exclude_keys = pure_list
     (pure_cons (build_pure_c_string ("DEL"), build_pure_c_string ("\\d")),
@@ -3217,12 +3128,6 @@ syms_of_keymap (void)
      pure_cons (build_pure_c_string ("ESC"), build_pure_c_string ("\\e")),
      pure_cons (build_pure_c_string ("SPC"), build_pure_c_string (" ")));
   staticpro (&exclude_keys);
-
-  DEFVAR_LISP ("define-key-rebound-commands", Vdefine_key_rebound_commands,
-	       doc: /* List of commands given new key bindings recently.
-This is used for internal purposes during Emacs startup;
-don't alter it yourself.  */);
-  Vdefine_key_rebound_commands = Qt;
 
   DEFVAR_LISP ("minibuffer-local-map", Vminibuffer_local_map,
 	       doc: /* Default keymap to use when reading from the minibuffer.  */);
@@ -3306,12 +3211,9 @@ be preferred.  */);
   defsubr (&Scopy_keymap);
   defsubr (&Scommand_remapping);
   defsubr (&Skey_binding);
-  defsubr (&Slocal_key_binding);
-  defsubr (&Sglobal_key_binding);
   defsubr (&Sminor_mode_key_binding);
   defsubr (&Sdefine_key);
   defsubr (&Slookup_key);
-  defsubr (&Sdefine_prefix_command);
   defsubr (&Suse_global_map);
   defsubr (&Suse_local_map);
   defsubr (&Scurrent_local_map);
@@ -3327,11 +3229,4 @@ be preferred.  */);
   defsubr (&Stext_char_description);
   defsubr (&Swhere_is_internal);
   defsubr (&Sdescribe_buffer_bindings);
-}
-
-void
-keys_of_keymap (void)
-{
-  initial_define_key (global_map, 033, "ESC-prefix");
-  initial_define_key (global_map, Ctl ('X'), "Control-X-prefix");
 }

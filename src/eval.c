@@ -818,6 +818,8 @@ The optional argument DOCSTRING is a documentation string for the
 variable.
 
 To define a user option, use `defcustom' instead of `defvar'.
+
+To define a buffer-local variable, use `defvar-local'.
 usage: (defvar SYMBOL &optional INITVALUE DOCSTRING)  */)
   (Lisp_Object args)
 {
@@ -1163,12 +1165,23 @@ usage: (catch TAG BODY...)  */)
    FUNC should return a Lisp_Object.
    This is how catches are done from within C code.  */
 
+/* MINIBUFFER_QUIT_LEVEL is to handle quitting from nested minibuffers by
+   throwing t to tag `exit'.
+   0 means there is no (throw 'exit t) in progress, or it wasn't from
+     a minibuffer which isn't the most nested;
+   N > 0 means the `throw' was done from the minibuffer at level N which
+     wasn't the most nested.  */
+EMACS_INT minibuffer_quit_level = 0;
+
 Lisp_Object
 internal_catch (Lisp_Object tag,
 		Lisp_Object (*func) (Lisp_Object), Lisp_Object arg)
 {
   /* This structure is made part of the chain `catchlist'.  */
   struct handler *c = push_handler (tag, CATCHER);
+
+  if (EQ (tag, Qexit))
+    minibuffer_quit_level = 0;
 
   /* Call FUNC.  */
   if (! sys_setjmp (c->jmp))
@@ -1183,6 +1196,17 @@ internal_catch (Lisp_Object tag,
       Lisp_Object val = handlerlist->val;
       clobbered_eassert (handlerlist == c);
       handlerlist = handlerlist->next;
+      if (EQ (tag, Qexit) && EQ (val, Qt) && minibuffer_quit_level > 0)
+	/* If we've thrown t to tag `exit' from within a minibuffer, we
+	   exit all minibuffers more deeply nested than the current
+	   one.  */
+	{
+	  if (minibuf_level > minibuffer_quit_level
+	      && !NILP (Fminibuffer_innermost_command_loop_p (Qnil)))
+            Fthrow (Qexit, Qt);
+	  else
+	    minibuffer_quit_level = 0;
+	}
       return val;
     }
 }
@@ -1731,12 +1755,16 @@ signal_or_quit (Lisp_Object error_symbol, Lisp_Object data, bool keyboard_quit)
 	return Qnil;
     }
 
-  /* If we're in batch mode, print a backtrace unconditionally to help with
-     debugging.  Make sure to use `debug' unconditionally to not interfere with
-     ERT or other packages that install custom debuggers.  */
+  /* If we're in batch mode, print a backtrace unconditionally to help
+     with debugging.  Make sure to use `debug' unconditionally to not
+     interfere with ERT or other packages that install custom
+     debuggers.  Don't try to call the debugger while dumping or
+     bootstrapping, it wouldn't work anyway.  */
   if (!debugger_called && !NILP (error_symbol)
-      && (NILP (clause) || EQ (h->tag_or_ch, Qerror)) && noninteractive
-      && backtrace_on_error_noninteractive)
+      && (NILP (clause) || EQ (h->tag_or_ch, Qerror))
+      && noninteractive && backtrace_on_error_noninteractive
+      && !will_dump_p () && !will_bootstrap_p ()
+      && NILP (Vinhibit_debugger))
     {
       ptrdiff_t count = SPECPDL_INDEX ();
       specbind (Vdebugger, Qdebug);

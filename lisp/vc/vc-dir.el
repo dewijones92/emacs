@@ -54,6 +54,42 @@ See `run-hooks'."
   :type 'hook
   :group 'vc)
 
+(defface vc-dir-header '((t :inherit font-lock-type-face))
+  "Face for headers in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-header-value '((t :inherit font-lock-variable-name-face))
+  "Face for header values in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-directory '((t :inherit font-lock-comment-delimiter-face))
+  "Face for directories in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-file '((t :inherit font-lock-function-name-face))
+  "Face for files in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-mark-indicator '((t :inherit font-lock-type-face))
+  "Face for mark indicators in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-status-warning '((t :inherit font-lock-warning-face))
+  "Face for warning status in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-status-edited '((t :inherit font-lock-variable-name-face))
+  "Face for edited status in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-status-up-to-date '((t :inherit font-lock-builtin-face))
+  "Face for up-to-date status in VC-dir buffers."
+  :group 'vc)
+
+(defface vc-dir-status-ignored '((t :inherit shadow))
+  "Face for ignored or empty values in VC-dir buffers."
+  :group 'vc)
+
 ;; Used to store information for the files displayed in the directory buffer.
 ;; Each item displayed corresponds to one of these defstructs.
 (cl-defstruct (vc-dir-fileinfo
@@ -300,7 +336,6 @@ See `run-hooks'."
     (define-key map "\C-o" 'vc-dir-display-file)
     (define-key map "\C-c\C-c" 'vc-dir-kill-dir-status-process)
     (define-key map [down-mouse-3] 'vc-dir-menu)
-    (define-key map [mouse-2] 'vc-dir-toggle-mark)
     (define-key map [follow-link] 'mouse-face)
     (define-key map "x" 'vc-dir-hide-up-to-date)
     (define-key map [?\C-k] 'vc-dir-kill-line)
@@ -1085,7 +1120,6 @@ U - if the cursor is on a file: unmark all the files with the same state
       as the current file
   - if the cursor is on a directory: unmark all child files
   - with a prefix argument: unmark all files
-mouse-2  - toggles the mark state
 
 VC commands
 VC commands in the `C-x v' prefix can be used.
@@ -1128,11 +1162,11 @@ It calls the `dir-extra-headers' backend method to display backend
 specific headers."
   (concat
    ;; First layout the common headers.
-   (propertize "VC backend : " 'face 'font-lock-type-face)
-   (propertize (format "%s\n" backend) 'face 'font-lock-variable-name-face)
-   (propertize "Working dir: " 'face 'font-lock-type-face)
+   (propertize "VC backend : " 'face 'vc-dir-header)
+   (propertize (format "%s\n" backend) 'face 'vc-dir-header-value)
+   (propertize "Working dir: " 'face 'vc-dir-header)
    (propertize (format "%s\n" (abbreviate-file-name dir))
-               'face 'font-lock-variable-name-face)
+               'face 'vc-dir-header-value)
    ;; Then the backend specific ones.
    (vc-call-backend backend 'dir-extra-headers dir)
    "\n"))
@@ -1388,9 +1422,15 @@ These are the commands available for use in the file status buffer:
   ;; backend specific headers.
   ;; XXX: change this to return nil before the release.
   (concat
-   (propertize "Extra      : " 'face 'font-lock-type-face)
+   (propertize "Extra      : " 'face 'vc-dir-header)
    (propertize "Please add backend specific headers here.  It's easy!"
-	       'face 'font-lock-warning-face)))
+	       'face 'vc-dir-status-warning)))
+
+(defvar vc-dir-status-mouse-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-2] 'vc-dir-toggle-mark)
+    map)
+  "Local keymap for toggling mark.")
 
 (defvar vc-dir-filename-mouse-map
    (let ((map (make-sparse-keymap)))
@@ -1410,20 +1450,23 @@ These are the commands available for use in the file status buffer:
     (insert
      (propertize
       (format "%c" (if (vc-dir-fileinfo->marked fileentry) ?* ? ))
-      'face 'font-lock-type-face)
+      'face 'vc-dir-mark-indicator)
      "   "
      (propertize
       (format "%-20s" state)
-      'face (cond ((eq state 'up-to-date) 'font-lock-builtin-face)
-		  ((memq state '(missing conflict)) 'font-lock-warning-face)
-		  ((eq state 'edited) 'font-lock-constant-face)
-		  (t 'font-lock-variable-name-face))
-      'mouse-face 'highlight)
+      'face (cond
+             ((eq state 'up-to-date) 'vc-dir-status-up-to-date)
+             ((memq state '(missing conflict needs-update unlocked-changes))
+              'vc-dir-status-warning)
+             ((eq state 'ignored) 'vc-dir-status-ignored)
+             (t 'vc-dir-status-edited))
+      'mouse-face 'highlight
+      'keymap vc-dir-status-mouse-map)
      " "
      (propertize
       (format "%s" filename)
       'face
-      (if isdir 'font-lock-comment-delimiter-face 'font-lock-function-name-face)
+      (if isdir 'vc-dir-directory 'vc-dir-file)
       'help-echo
       (if isdir
 	  "Directory\nVC operations can be applied to it\nmouse-3: Pop-up menu"

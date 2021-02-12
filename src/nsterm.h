@@ -39,6 +39,15 @@ typedef CGFloat EmacsCGFloat;
 typedef float EmacsCGFloat;
 #endif
 
+/* NSFilenamesPboardType is deprecated in macOS 10.14, but
+   NSPasteboardTypeFileURL is only available in 10.13 (and GNUstep
+   probably lacks it too). */
+#if defined NS_IMPL_COCOA && MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
+#define NS_USE_NSPasteboardTypeFileURL 1
+#else
+#define NS_USE_NSPasteboardTypeFileURL 0
+#endif
+
 /* ==========================================================================
 
    Trace support
@@ -414,6 +423,7 @@ typedef id instancetype;
    ========================================================================== */
 
 @class EmacsToolbar;
+@class EmacsSurface;
 
 #ifdef NS_IMPL_COCOA
 @interface EmacsView : NSView <NSTextInput, NSWindowDelegate>
@@ -435,7 +445,7 @@ typedef id instancetype;
    BOOL fs_is_native;
    BOOL in_fullscreen_transition;
 #ifdef NS_DRAW_TO_BUFFER
-   CGContextRef drawingBuffer;
+   EmacsSurface *surface;
 #endif
 @public
    struct frame *emacsframe;
@@ -478,7 +488,7 @@ typedef id instancetype;
 
 #ifdef NS_DRAW_TO_BUFFER
 - (void)focusOnDrawingBuffer;
-- (void)createDrawingBuffer;
+- (void)unfocusDrawingBuffer;
 #endif
 - (void)copyRect:(NSRect)srcRect to:(NSRect)dstRect;
 
@@ -497,6 +507,7 @@ typedef id instancetype;
   NSPoint grabOffset;
 }
 
+- (BOOL)restackWindow:(NSWindow *)win above:(BOOL)above;
 - (void)setAppearance;
 @end
 
@@ -703,6 +714,25 @@ typedef id instancetype;
 - (bool)judge;
 + (CGFloat)scrollerWidth;
 @end
+
+#ifdef NS_DRAW_TO_BUFFER
+@interface EmacsSurface : NSObject
+{
+  NSMutableArray *cache;
+  NSSize size;
+  CGColorSpaceRef colorSpace;
+  IOSurfaceRef currentSurface;
+  IOSurfaceRef lastSurface;
+  CGContextRef context;
+}
+- (id) initWithSize: (NSSize)s ColorSpace: (CGColorSpaceRef)cs;
+- (void) dealloc;
+- (NSSize) getSize;
+- (CGContextRef) getContext;
+- (void) releaseContext;
+- (IOSurfaceRef) getSurface;
+@end
+#endif
 
 
 /* ==========================================================================

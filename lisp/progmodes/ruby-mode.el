@@ -598,7 +598,7 @@ It is used when `ruby-encoding-magic-comment-style' is set to `custom'."
     (`(:before . ,(or "(" "[" "{"))
      (cond
       ((and (equal token "{")
-            (not (smie-rule-prev-p "(" "{" "[" "," "=>" "=" "return" ";"))
+            (not (smie-rule-prev-p "(" "{" "[" "," "=>" "=" "return" ";" "do"))
             (save-excursion
               (forward-comment -1)
               (not (eq (preceding-char) ?:))))
@@ -1598,13 +1598,16 @@ See `add-log-current-defun-function'."
         (let* ((indent 0) mname mlist
                (start (point))
                (make-definition-re
-                (lambda (re)
+                (lambda (re &optional method-name?)
                   (concat "^[ \t]*" re "[ \t]+"
                           "\\("
                           ;; \\. and :: for class methods
-                          "\\([A-Za-z_]" ruby-symbol-re "*[?!]?\\|\\.\\|::" "\\)"
+                          "\\([A-Za-z_]" ruby-symbol-re "*[?!]?"
+                          "\\|"
+                          (if method-name? ruby-operator-re "\\.")
+                          "\\|::" "\\)"
                           "+\\)")))
-               (definition-re (funcall make-definition-re ruby-defun-beg-re))
+               (definition-re (funcall make-definition-re ruby-defun-beg-re t))
                (module-re (funcall make-definition-re "\\(class\\|module\\)")))
           ;; Get the current method definition (or class/module).
           (when (re-search-backward definition-re nil t)
@@ -1866,8 +1869,8 @@ It will be properly highlighted even when the call omits parens.")
       ;; Symbols with special characters.
       (":\\([-+~]@?\\|[/%&|^`]\\|\\*\\*?\\|<\\(<\\|=>?\\)?\\|>[>=]?\\|===?\\|=~\\|![~=]?\\|\\[\\]=?\\)"
        (1 (unless (or
-                   (eq (char-before (match-beginning 0)) ?:)
-                   (nth 8 (syntax-ppss (match-beginning 1))))
+                   (nth 8 (syntax-ppss (match-beginning 1)))
+                   (eq (char-before (match-beginning 0)) ?:))
             (goto-char (match-end 0))
             (string-to-syntax "_"))))
       ;; Symbols ending with '=' (bug#42846).

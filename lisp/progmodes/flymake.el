@@ -4,7 +4,7 @@
 
 ;; Author: Pavel Kobyakov <pk_at_work@yahoo.com>
 ;; Maintainer: João Távora <joaotavora@gmail.com>
-;; Version: 1.0.9
+;; Version: 1.1.1
 ;; Keywords: c languages tools
 ;; Package-Requires: ((emacs "26.1") (eldoc "1.1.0"))
 
@@ -352,12 +352,20 @@ diagnostics at BEG."
 (flymake--diag-accessor flymake-diagnostic-data flymake--diag-data backend)
 
 (defun flymake-diagnostic-beg (diag)
-  "Get Flymake diagnostic DIAG's start position."
-  (overlay-start (flymake--diag-overlay diag)))
+  "Get Flymake diagnostic DIAG's start position.
+This position only be queried after DIAG has been reported to Flymake."
+  (let ((overlay (flymake--diag-overlay diag)))
+    (unless overlay
+      (error "DIAG %s not reported to Flymake yet" diag))
+    (overlay-start overlay)))
 
 (defun flymake-diagnostic-end (diag)
-  "Get Flymake diagnostic DIAG's end position."
-  (overlay-end (flymake--diag-overlay diag)))
+  "Get Flymake diagnostic DIAG's end position.
+This position only be queried after DIAG has been reported to Flymake."
+  (let ((overlay (flymake--diag-overlay diag)))
+    (unless overlay
+      (error "DIAG %s not reported to Flymake yet" diag))
+    (overlay-end overlay)))
 
 (cl-defun flymake--overlays (&key beg end filter compare key)
   "Get flymake-related overlays.
@@ -1283,6 +1291,8 @@ correctly.")
   (when (flymake-running-backends) flymake-mode-line-counter-format))
 
 (defun flymake--mode-line-counter (type &optional no-space)
+  "Compute number of diagnostics in buffer with TYPE's severity.
+TYPE is usually keyword `:error', `:warning' or `:note'."
   (let ((count 0)
         (face (flymake--lookup-type-property type
                                              'mode-line-face
@@ -1290,7 +1300,8 @@ correctly.")
     (maphash (lambda
                (_b state)
                (dolist (d (flymake--backend-state-diags state))
-                 (when (eq type (flymake--diag-type d))
+                 (when (= (flymake--severity type)
+                          (flymake--severity (flymake--diag-type d)))
                    (cl-incf count))))
              flymake--backend-state)
     (when (or (cl-plusp count)

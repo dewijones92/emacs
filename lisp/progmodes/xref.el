@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2014-2021 Free Software Foundation, Inc.
 ;; Version: 1.0.4
-;; Package-Requires: ((emacs "26.3"))
+;; Package-Requires: ((emacs "26.1"))
 
 ;; This is a GNU ELPA :core package.  Avoid functionality that is not
 ;; compatible with the version of Emacs recorded above.
@@ -547,8 +547,7 @@ If SELECT is non-nil, select the target window."
   "Goto and display position POS of buffer BUF in a window.
 Honor `xref--original-window-intent', run `xref-after-jump-hook'
 and finally return the window."
-  (let* ((xref-buf (current-buffer))
-         (pop-up-frames
+  (let* ((pop-up-frames
           (or (eq xref--original-window-intent 'frame)
               pop-up-frames))
          (action
@@ -566,9 +565,6 @@ and finally return the window."
     (with-selected-window (display-buffer buf action)
       (xref--goto-char pos)
       (run-hooks 'xref-after-jump-hook)
-      (let ((buf (current-buffer)))
-        (with-current-buffer xref-buf
-          (setq-local other-window-scroll-buffer buf)))
       (selected-window))))
 
 (defun xref--display-buffer-in-other-window (buffer alist)
@@ -666,6 +662,12 @@ means to first quit the *xref* buffer."
   "Quit *xref* buffer, then jump to xref on current line."
   (interactive)
   (xref-goto-xref t))
+
+(defun xref-quit-and-pop-marker-stack ()
+  "Quit *xref* buffer, then pop the xref marker stack."
+  (interactive)
+  (quit-window)
+  (xref-pop-marker-stack))
 
 (defun xref-query-replace-in-results (from to)
   "Perform interactive replacement of FROM with TO in all displayed xrefs.
@@ -797,6 +799,7 @@ references displayed in the current *xref* buffer."
     (define-key map (kbd ".") #'xref-next-line)
     (define-key map (kbd ",") #'xref-prev-line)
     (define-key map (kbd "g") #'xref-revert-buffer)
+    (define-key map (kbd "M-,") #'xref-quit-and-pop-marker-stack)
     map))
 
 (define-derived-mode xref--xref-buffer-mode special-mode "XREF"
@@ -932,8 +935,10 @@ Return an alist of the form ((FILENAME . (XREF ...)) ...)."
           (or
            (assoc-default 'fetched-xrefs alist)
            (funcall fetcher)))
-         (xref-alist (xref--analyze xrefs)))
+         (xref-alist (xref--analyze xrefs))
+         (dd default-directory))
     (with-current-buffer (get-buffer-create xref-buffer-name)
+      (setq default-directory dd)
       (xref--xref-buffer-mode)
       (xref--show-common-initialize xref-alist fetcher alist)
       (pop-to-buffer (current-buffer))
@@ -962,16 +967,16 @@ Return an alist of the form ((FILENAME . (XREF ...)) ...)."
   (let ((inhibit-read-only t)
         (buffer-undo-list t))
     (save-excursion
-      (erase-buffer)
       (condition-case err
-          (xref--insert-xrefs
-           (xref--analyze (funcall xref--fetcher)))
+          (let ((alist (xref--analyze (funcall xref--fetcher))))
+            (erase-buffer)
+            (xref--insert-xrefs alist))
         (user-error
+         (erase-buffer)
          (insert
           (propertize
            (error-message-string err)
-           'face 'error))))
-      (goto-char (point-min)))))
+           'face 'error)))))))
 
 (defun xref-show-definitions-buffer (fetcher alist)
   "Show the definitions list in a regular window.
@@ -996,21 +1001,28 @@ When only one definition found, jump to it right away instead."
 When there is more than one definition, split the selected window
 and show the list in a small window at the bottom.  And use a
 local keymap that binds `RET' to `xref-quit-and-goto-xref'."
-  (let ((xrefs (funcall fetcher)))
+  (let* ((xrefs (funcall fetcher))
+         (dd default-directory)
+         ;; XXX: Make percentage customizable maybe?
+         (max-height (/ (window-height) 2))
+         (size-fun (lambda (window)
+                     (fit-window-to-buffer window max-height))))
     (cond
      ((not (cdr xrefs))
       (xref-pop-to-location (car xrefs)
                             (assoc-default 'display-action alist)))
      (t
       (with-current-buffer (get-buffer-create xref-buffer-name)
+        (setq default-directory dd)
         (xref--transient-buffer-mode)
         (xref--show-common-initialize (xref--analyze xrefs) fetcher alist)
         (pop-to-buffer (current-buffer)
-                       '(display-buffer-in-direction . ((direction . below))))
+                       `(display-buffer-in-direction . ((direction . below)
+                                                        (window-height . ,size-fun))))
         (current-buffer))))))
 
-(define-obsolete-function-alias
-  'xref--show-defs-buffer-at-bottom #'xref-show-definitions-buffer-at-bottom)
+(define-obsolete-function-alias 'xref--show-defs-buffer-at-bottom
+  #'xref-show-definitions-buffer-at-bottom "28.1")
 
 (defun xref-show-definitions-completing-read (fetcher alist)
   "Let the user choose the target definition with completion.
@@ -1378,7 +1390,8 @@ IGNORES is a list of glob patterns for files to ignore."
        ;; do that reliably enough, without creating false negatives?
        (command (xref--rgrep-command (xref--regexp-to-extended regexp)
                                      files
-                                     (file-local-name (expand-file-name dir))
+                                     (file-name-as-directory
+                                      (file-local-name (expand-file-name dir)))
                                      ignores))
        (def default-directory)
        (buf (get-buffer-create " *xref-grep*"))

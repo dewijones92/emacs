@@ -1,4 +1,4 @@
-;;; decipher.el --- cryptanalyze monoalphabetic substitution ciphers
+;;; decipher.el --- cryptanalyze monoalphabetic substitution ciphers  -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 1995-1996, 2001-2021 Free Software Foundation, Inc.
 ;;
@@ -71,7 +71,7 @@
 ;; Emacs commands.
 ;;
 ;; Decipher supports Font Lock mode.  To use it, you can also add
-;;     (add-hook 'decipher-mode-hook 'turn-on-font-lock)
+;;     (add-hook 'decipher-mode-hook #'turn-on-font-lock)
 ;; See the variable `decipher-font-lock-keywords' if you want to customize
 ;; the faces used.  I'd like to thank Simon Marshall for his help in making
 ;; Decipher work well with Font Lock.
@@ -83,6 +83,8 @@
 ;;
 ;; 1. The consonant-line shortcut
 ;; 2. More functions for analyzing ciphertext
+
+;;; Code:
 
 ;;;===================================================================
 ;;; Variables:
@@ -99,8 +101,7 @@
   "Non-nil means to convert ciphertext to uppercase.
 nil means the case of the ciphertext is preserved.
 This variable must be set before typing `\\[decipher]'."
-  :type 'boolean
-  :group 'decipher)
+  :type 'boolean)
 
 
 (defcustom decipher-ignore-spaces nil
@@ -108,21 +109,18 @@ This variable must be set before typing `\\[decipher]'."
 You should set this to nil if the cipher message is divided into words,
 or t if it is not.
 This variable is buffer-local."
-  :type 'boolean
-  :group 'decipher)
+  :type 'boolean)
 (make-variable-buffer-local 'decipher-ignore-spaces)
 
 (defcustom decipher-undo-limit 5000
   "The maximum number of entries in the undo list.
 When the undo list exceeds this number, 100 entries are deleted from
 the tail of the list."
-  :type 'integer
-  :group 'decipher)
+  :type 'integer)
 
 (defcustom decipher-mode-hook nil
   "Hook to run upon entry to decipher."
-  :type 'hook
-  :group 'decipher)
+  :type 'hook)
 
 ;; End of user modifiable variables
 ;;--------------------------------------------------------------------
@@ -143,20 +141,20 @@ the tail of the list."
 (defvar decipher-mode-map
   (let ((map (make-keymap)))
     (suppress-keymap map)
-    (define-key map "A" 'decipher-show-alphabet)
-    (define-key map "C" 'decipher-complete-alphabet)
-    (define-key map "D" 'decipher-digram-list)
-    (define-key map "F" 'decipher-frequency-count)
-    (define-key map "M" 'decipher-make-checkpoint)
-    (define-key map "N" 'decipher-adjacency-list)
-    (define-key map "R" 'decipher-restore-checkpoint)
-    (define-key map "U" 'decipher-undo)
-    (define-key map " " 'decipher-keypress)
-    (define-key map [remap undo] 'decipher-undo)
-    (define-key map [remap advertised-undo] 'decipher-undo)
+    (define-key map "A" #'decipher-show-alphabet)
+    (define-key map "C" #'decipher-complete-alphabet)
+    (define-key map "D" #'decipher-digram-list)
+    (define-key map "F" #'decipher-frequency-count)
+    (define-key map "M" #'decipher-make-checkpoint)
+    (define-key map "N" #'decipher-adjacency-list)
+    (define-key map "R" #'decipher-restore-checkpoint)
+    (define-key map "U" #'decipher-undo)
+    (define-key map " " #'decipher-keypress)
+    (define-key map [remap undo] #'decipher-undo)
+    (define-key map [remap advertised-undo] #'decipher-undo)
     (let ((key ?a))
       (while (<= key ?z)
-	(define-key map (vector key) 'decipher-keypress)
+	(define-key map (vector key) #'decipher-keypress)
 	(cl-incf key)))
     map)
   "Keymap for Decipher mode.")
@@ -165,47 +163,40 @@ the tail of the list."
 (defvar decipher-stats-mode-map
   (let ((map (make-keymap)))
     (suppress-keymap map)
-    (define-key map "D" 'decipher-digram-list)
-    (define-key map "F" 'decipher-frequency-count)
-    (define-key map "N" 'decipher-adjacency-list)
+    (define-key map "D" #'decipher-digram-list)
+    (define-key map "F" #'decipher-frequency-count)
+    (define-key map "N" #'decipher-adjacency-list)
     map)
-"Keymap for Decipher-Stats mode.")
+  "Keymap for Decipher-Stats mode.")
 
 
-(defvar decipher-mode-syntax-table nil
-  "Decipher mode syntax table")
-
-(if decipher-mode-syntax-table
-    ()
+(defvar decipher-mode-syntax-table
   (let ((table (make-syntax-table))
         (c ?0))
     (while (<= c ?9)
       (modify-syntax-entry c "_" table) ;Digits are not part of words
       (cl-incf c))
-    (setq decipher-mode-syntax-table table)))
+    table)
+  "Decipher mode syntax table")
 
-(defvar decipher-alphabet nil)
+(defvar-local decipher-alphabet nil)
 ;; This is an alist containing entries (PLAIN-CHAR . CIPHER-CHAR),
 ;; where PLAIN-CHAR runs from ?a to ?z and CIPHER-CHAR is an uppercase
 ;; letter or space (which means no mapping is known for that letter).
 ;; This *must* contain entries for all lowercase characters.
-(make-variable-buffer-local 'decipher-alphabet)
 
-(defvar decipher-stats-buffer nil
+(defvar-local decipher-stats-buffer nil
   "The buffer which displays statistics for this ciphertext.
 Do not access this variable directly, use the function
 `decipher-stats-buffer' instead.")
-(make-variable-buffer-local 'decipher-stats-buffer)
 
-(defvar decipher-undo-list-size 0
+(defvar-local decipher-undo-list-size 0
   "The number of entries in the undo list.")
-(make-variable-buffer-local 'decipher-undo-list-size)
 
-(defvar decipher-undo-list nil
+(defvar-local decipher-undo-list nil
   "The undo list for this buffer.
 Each element is either a cons cell (PLAIN-CHAR . CIPHER-CHAR) or a
 list of such cons cells.")
-(make-variable-buffer-local 'decipher-undo-list)
 
 (defvar decipher-pending-undo-list nil)
 
@@ -222,7 +213,6 @@ list of such cons cells.")
 (defvar decipher--freqs)
 
 ;;;===================================================================
-;;; Code:
 ;;;===================================================================
 ;; Main entry points:
 ;;--------------------------------------------------------------------
@@ -264,7 +254,7 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZ   -*-decipher-*-\n)\n\n")
   (decipher-mode))
 
 ;;;###autoload
-(defun decipher-mode ()
+(define-derived-mode decipher-mode nil "Decipher"
   "Major mode for decrypting monoalphabetic substitution ciphers.
 Lower-case letters enter plaintext.
 Upper-case letters are commands.
@@ -280,16 +270,10 @@ The most useful commands are:
   Show adjacency list for current letter (lists letters appearing next to it)
 \\[decipher-make-checkpoint]  Save the current cipher alphabet (checkpoint)
 \\[decipher-restore-checkpoint]  Restore a saved cipher alphabet (checkpoint)"
-  (interactive)
-  (kill-all-local-variables)
   (setq buffer-undo-list  t             ;Disable undo
-        indent-tabs-mode  nil           ;Do not use tab characters
-        major-mode       'decipher-mode
-        mode-name        "Decipher")
+        indent-tabs-mode  nil)          ;Do not use tab characters
   (if decipher-force-uppercase
       (setq case-fold-search nil))      ;Case is significant when searching
-  (use-local-map decipher-mode-map)
-  (set-syntax-table decipher-mode-syntax-table)
   (unless (= (point-min) (point-max))
     (decipher-read-alphabet))
   (setq-local font-lock-defaults
@@ -299,7 +283,6 @@ The most useful commands are:
             (lambda () (setq buffer-read-only nil
                              buffer-undo-list nil))
             nil t)
-  (run-mode-hooks 'decipher-mode-hook)
   (setq buffer-read-only t))
 (put 'decipher-mode 'mode-class 'special)
 
@@ -322,10 +305,10 @@ The most useful commands are:
                ((= ?> first-char)
                 nil)
                ((= ?\( first-char)
-                (setq decipher-function 'decipher-alphabet-keypress)
+                (setq decipher-function #'decipher-alphabet-keypress)
                 t)
                ((= ?\) first-char)
-                (setq decipher-function 'decipher-alphabet-keypress)
+                (setq decipher-function #'decipher-alphabet-keypress)
                 nil)
                (t
                 (error "Bad location")))))
@@ -464,7 +447,7 @@ The most useful commands are:
       (decipher-insert plain-char)
       (setq case-fold-search t          ;Case is not significant
             cipher-string    (downcase cipher-string))
-      (let ((font-lock-fontify-region-function 'ignore))
+      (let ((font-lock-fontify-region-function #'ignore))
         ;; insert-and-inherit will pick the right face automatically
         (while (search-forward-regexp "^:" nil t)
           (setq bound (point-at-eol))
@@ -876,12 +859,12 @@ Creates the statistics buffer if it doesn't exist."
         (aset decipher--after  i (make-vector 27 0))))
     (if decipher-ignore-spaces
         (progn
-          (decipher-loop-no-breaks 'decipher--analyze)
+          (decipher-loop-no-breaks #'decipher--analyze)
           ;; The first character of ciphertext was marked as following a space:
           (let ((i 26))
             (while (>= (cl-decf i) 0)
               (aset (aref decipher--after  i) 26 0))))
-      (decipher-loop-with-breaks 'decipher--analyze))
+      (decipher-loop-with-breaks #'decipher--analyze))
     (message "Processing results...")
     (setcdr (last decipher--digram-list 2) nil)   ;Delete the phony "* " digram
     ;; Sort the digram list by frequency and alphabetical order:
@@ -962,18 +945,12 @@ Creates the statistics buffer if it doesn't exist."
 ;; Statistics Buffer:
 ;;====================================================================
 
-(defun decipher-stats-mode ()
+(define-derived-mode decipher-stats-mode nil "Decipher-Stats"
   "Major mode for displaying ciphertext statistics."
-  (interactive)
-  (kill-all-local-variables)
   (setq buffer-read-only  t
         buffer-undo-list  t             ;Disable undo
         case-fold-search  nil           ;Case is significant when searching
-        indent-tabs-mode  nil           ;Do not use tab characters
-        major-mode       'decipher-stats-mode
-        mode-name        "Decipher-Stats")
-  (use-local-map decipher-stats-mode-map)
-  (run-mode-hooks 'decipher-stats-mode-hook))
+        indent-tabs-mode  nil))         ;Do not use tab characters
 (put 'decipher-stats-mode 'mode-class 'special)
 
 ;;--------------------------------------------------------------------
@@ -1009,9 +986,8 @@ if it can't, it signals an error."
     (let ((stats-name (concat "*" (buffer-name) "*")))
       (setq decipher-stats-buffer
             (if (eq 'decipher-stats-mode
-                    (cdr-safe (assoc 'major-mode
-                                     (buffer-local-variables
-                                      (get-buffer stats-name)))))
+                    (buffer-local-value 'major-mode
+                                        (get-buffer stats-name)))
                 ;; We just lost track of the statistics buffer:
                 (get-buffer stats-name)
               (generate-new-buffer stats-name))))

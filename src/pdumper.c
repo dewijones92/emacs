@@ -2058,7 +2058,7 @@ dump_interval_tree (struct dump_context *ctx,
 static dump_off
 dump_string (struct dump_context *ctx, const struct Lisp_String *string)
 {
-#if CHECK_STRUCTS && !defined (HASH_Lisp_String_86FEA6EC7C)
+#if CHECK_STRUCTS && !defined (HASH_Lisp_String_348C2B2FDB)
 # error "Lisp_String changed. See CHECK_STRUCTS comment in config.h."
 #endif
   /* If we have text properties, write them _after_ the string so that
@@ -5273,7 +5273,7 @@ pdumper_load (const char *dump_filename)
   eassert (!dump_loaded_p ());
 
   int err;
-  int dump_fd = emacs_open (dump_filename, O_RDONLY, 0);
+  int dump_fd = emacs_open_noquit (dump_filename, O_RDONLY, 0);
   if (dump_fd < 0)
     {
       err = (errno == ENOENT || errno == ENOTDIR

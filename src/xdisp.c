@@ -4262,6 +4262,7 @@ handle_fontified_prop (struct it *it)
   if (!STRINGP (it->string)
       && it->s == NULL
       && !NILP (Vfontification_functions)
+      && !(input_was_pending && redisplay_skip_fontification_on_input)
       && !NILP (Vrun_hooks)
       && (pos = make_fixnum (IT_CHARPOS (*it)),
 	  prop = Fget_char_property (pos, Qfontified, Qnil),
@@ -9284,8 +9285,8 @@ move_it_in_display_line_to (struct it *it,
 	      if (may_wrap && char_can_wrap_before (it))
 		{
 		  /* We have reached a glyph that follows one or more
-		     whitespace characters or a character that allows
-		     wrapping after it.  If this character allows
+		     whitespace characters or characters that allow
+		     wrapping after them.  If this character allows
 		     wrapping before it, save this position as a
 		     wrapping point.  */
 		  if (atpos_it.sp >= 0)
@@ -9302,7 +9303,6 @@ move_it_in_display_line_to (struct it *it,
 		    }
 		  /* Otherwise, we can wrap here.  */
 		  SAVE_IT (wrap_it, *it, wrap_data);
-                  next_may_wrap = false;
 		}
               /* Update may_wrap for the next iteration.  */
               may_wrap = next_may_wrap;
@@ -10649,9 +10649,10 @@ include the height of both, if present, in the return value.  */)
       bpos = BEGV_BYTE;
       while (bpos < ZV_BYTE)
 	{
-	  c = fetch_char_advance (&start, &bpos);
+	  c = FETCH_BYTE (bpos);
 	  if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r'))
 	    break;
+	  inc_both (&start, &bpos);
 	}
       while (bpos > BEGV_BYTE)
 	{
@@ -10680,7 +10681,10 @@ include the height of both, if present, in the return value.  */)
 	  dec_both (&end, &bpos);
 	  c = FETCH_BYTE (bpos);
 	  if (!(c == ' ' || c == '\t' || c == '\n' || c == '\r'))
-	    break;
+            {
+	      inc_both (&end, &bpos);
+	      break;
+            }
 	}
       while (bpos < ZV_BYTE)
 	{
@@ -10702,6 +10706,7 @@ include the height of both, if present, in the return value.  */)
 
   itdata = bidi_shelve_cache ();
   start_display (&it, w, startp);
+  int start_y = it.current_y;
   /* It makes no sense to measure dimensions of region of text that
      crosses the point where bidi reordering changes scan direction.
      By using unidirectional movement here we at least support the use
@@ -10710,8 +10715,23 @@ include the height of both, if present, in the return value.  */)
      same directionality.  */
   it.bidi_p = false;
 
+  /* Start at the beginning of the line containing FROM.  Otherwise
+     IT.current_x will be incorrectly set to zero at some arbitrary
+     non-zero X coordinate.  */
+  reseat_at_previous_visible_line_start (&it);
+  it.current_x = it.hpos = 0;
+  if (IT_CHARPOS (it) != start)
+    move_it_to (&it, start, -1, -1, -1, MOVE_TO_POS);
+
+  /* Now move to TO.  */
+  int start_x = it.current_x;
   int move_op = MOVE_TO_POS | MOVE_TO_Y;
   int to_x = -1;
+  it.current_y = start_y;
+  /* If FROM is on a newline, pretend that we start at the beginning
+     of the next line, because the newline takes no place on display.  */
+  if (FETCH_BYTE (start) == '\n')
+    it.current_x = 0;
   if (!NILP (x_limit))
     {
       it.last_visible_x = max_x;
@@ -10754,8 +10774,14 @@ include the height of both, if present, in the return value.  */)
         x = max_x;
     }
 
-  /* Subtract height of header-line which was counted automatically by
-     start_display.  */
+  /* If text spans more than one screen line, we don't need to adjust
+     the x-span for start_x, since the second and subsequent lines
+     will begin at zero X coordinate.  */
+  if (it.current_y > start_y)
+    start_x = 0;
+
+  /* Subtract height of header-line and tab-line which was counted
+     automatically by start_display.  */
   y = it.current_y + it.max_ascent + it.max_descent
     - WINDOW_TAB_LINE_HEIGHT (w) - WINDOW_HEADER_LINE_HEIGHT (w);
   /* Don't return more than Y-LIMIT.  */
@@ -10782,7 +10808,7 @@ include the height of both, if present, in the return value.  */)
   if (old_b)
     set_buffer_internal (old_b);
 
-  return Fcons (make_fixnum (x), make_fixnum (y));
+  return Fcons (make_fixnum (x - start_x), make_fixnum (y));
 }
 
 /***********************************************************************
@@ -12872,7 +12898,7 @@ update_menu_bar (struct frame *f, bool save_match_data, bool hooks_run)
                  the selected frame should be allowed to set it.  */
               if (f == SELECTED_FRAME ())
 #endif
-		set_frame_menubar (f, false, false);
+		set_frame_menubar (f, false);
 	    }
 	  else
 	    /* On a terminal screen, the menu bar is an ordinary screen
@@ -19426,8 +19452,11 @@ try_window (Lisp_Object window, struct text_pos pos, int flags)
      'start_display' again.  */
   ptrdiff_t it_charpos = IT_CHARPOS (it);
 
-  /* Don't let the cursor end in the scroll margins.  */
+  /* Don't let the cursor end in the scroll margins.  However, when
+     the window is vscrolled, we leave it to vscroll to handle the
+     margins, see window_scroll_pixel_based.  */
   if ((flags & TRY_WINDOW_CHECK_MARGINS)
+      && w->vscroll == 0
       && !MINI_WINDOW_P (w))
     {
       int top_scroll_margin = window_scroll_margin (w, MARGIN_IN_PIXELS);
@@ -19436,7 +19465,7 @@ try_window (Lisp_Object window, struct text_pos pos, int flags)
 	top_scroll_margin += CURRENT_HEADER_LINE_HEIGHT (w);
       start_display (&it, w, pos);
 
-      if ((w->cursor.y >= 0	/* not vscrolled */
+      if ((w->cursor.y >= 0
 	   && w->cursor.y < top_scroll_margin
 	   && CHARPOS (pos) > BEGV)
 	  /* rms: considering make_cursor_line_fully_visible_p here
@@ -20818,9 +20847,8 @@ try_window_id (struct window *w)
 		     + window_wants_header_line (w)
 		     + window_internal_height (w));
 
-#if defined (HAVE_GPM) || defined (MSDOS)
 	  gui_clear_window_mouse_face (w);
-#endif
+
 	  /* Perform the operation on the screen.  */
 	  if (dvpos > 0)
 	    {
@@ -25503,7 +25531,7 @@ display_mode_line (struct window *w, enum face_id face_id, Lisp_Object format)
 	  if (start < i)
 	    display_string (NULL,
 			    Fsubstring (mode_string, make_fixnum (start),
-					make_fixnum (i - 1)),
+					make_fixnum (i)),
 			    Qnil, 0, 0, &it, 0, 0, 0,
 			    STRING_MULTIBYTE (mode_string));
 	}
@@ -26966,6 +26994,15 @@ decode_mode_spec (struct window *w, register int c, int field_width,
     return "";
 }
 
+/* Return the number of lines between start_byte and end_byte in the
+   current buffer. */
+
+ptrdiff_t
+count_lines (ptrdiff_t start_byte, ptrdiff_t end_byte)
+{
+  ptrdiff_t ignored;
+  return display_count_lines (start_byte, end_byte, ZV, &ignored);
+}
 
 /* Count up to COUNT lines starting from START_BYTE.  COUNT negative
    means count lines back from START_BYTE.  But don't go beyond
@@ -29810,7 +29847,8 @@ produce_stretch_glyph (struct it *it)
 #endif	/* HAVE_WINDOW_SYSTEM */
     height = 1;
 
-  if (width > 0 && it->line_wrap != TRUNCATE
+  if (width > 0
+      && it->area == TEXT_AREA && it->line_wrap != TRUNCATE
       && it->current_x + width > it->last_visible_x)
     {
       width = it->last_visible_x - it->current_x;
@@ -31924,9 +31962,8 @@ draw_row_with_mouse_face (struct window *w, int start_x, struct glyph_row *row,
       return;
     }
 #endif
-#if defined (HAVE_GPM) || defined (MSDOS) || defined (WINDOWSNT)
+
   tty_draw_row_with_mouse_face (w, row, start_hpos, end_hpos, draw);
-#endif
 }
 
 /* Display the active region described by mouse_face_* according to DRAW.  */
@@ -35098,7 +35135,8 @@ of your window manager.  */);
 This dynamically changes the tab-bar's height to the minimum height
 that is needed to make all tab-bar items visible.
 If value is `grow-only', the tab-bar's height is only increased
-automatically; to decrease the tab-bar height, use \\[recenter].  */);
+automatically; to decrease the tab-bar height, use \\[recenter],
+after setting `recenter-redisplay' to the value of t.  */);
   Vauto_resize_tab_bars = Qt;
 
   DEFVAR_BOOL ("auto-raise-tab-bar-buttons", auto_raise_tab_bar_buttons_p,
@@ -35110,7 +35148,8 @@ automatically; to decrease the tab-bar height, use \\[recenter].  */);
 This dynamically changes the tool-bar's height to the minimum height
 that is needed to make all tool-bar items visible.
 If value is `grow-only', the tool-bar's height is only increased
-automatically; to decrease the tool-bar height, use \\[recenter].  */);
+automatically; to decrease the tool-bar height, use \\[recenter],
+after setting `recenter-redisplay' to the value of t.  */);
   Vauto_resize_tool_bars = Qt;
 
   DEFVAR_BOOL ("auto-raise-tool-bar-buttons", auto_raise_tool_bar_buttons_p,
@@ -35581,7 +35620,7 @@ message displayed by its counterpart function specified by
 
   DEFVAR_BOOL ("display-raw-bytes-as-hex", display_raw_bytes_as_hex,
     doc: /* Non-nil means display raw bytes in hexadecimal format.
-The default is to use octal format (\200) whereas hexadecimal (\x80)
+The default is to use octal format (\\200) whereas hexadecimal (\\x80)
 may be more familiar to users.  */);
   display_raw_bytes_as_hex = false;
 
@@ -35597,6 +35636,19 @@ The initial frame is not displayed anywhere, so skipping it is
 best except in special circumstances such as running redisplay tests
 in batch mode.   */);
   redisplay_skip_initial_frame = true;
+
+  DEFVAR_BOOL ("redisplay-skip-fontification-on-input",
+               redisplay_skip_fontification_on_input,
+    doc: /* Skip `fontification_functions` when there is input pending.
+If non-nil and there was input pending at the beginning of the command,
+the `fontification_functions` hook is not run.  This usually does not
+affect the display because redisplay is completely skipped anyway if input
+was pending, but it can make scrolling smoother by avoiding
+unnecessary fontification.
+It is similar to `fast-but-imprecise-scrolling' with similar tradeoffs,
+but with the advantage that it should only affect the behavior when Emacs
+has trouble keeping up with the incoming input rate.  */);
+  redisplay_skip_fontification_on_input = false;
 
   DEFVAR_BOOL ("redisplay-adhoc-scroll-in-resize-mini-windows",
                redisplay_adhoc_scroll_in_resize_mini_windows,
