@@ -62,19 +62,20 @@
 
 (defvar pcase--dontwarn-upats '(pcase--dontcare))
 
-(def-edebug-spec pcase-PAT
-  (&or (&lookup symbolp pcase--get-edebug-spec)
-       sexp))
+(def-edebug-elem-spec 'pcase-PAT
+  '(&or (&interpose symbolp pcase--edebug-match-pat-args) sexp))
 
-(def-edebug-spec pcase-FUN
-  (&or lambda-expr
-       ;; Punt on macros/special forms.
-       (functionp &rest form)
-       sexp))
+(def-edebug-elem-spec 'pcase-FUN
+  '(&or lambda-expr
+        ;; Punt on macros/special forms.
+        (functionp &rest form)
+        sexp))
 
 ;; Only called from edebug.
 (declare-function edebug-get-spec "edebug" (symbol))
-(defun pcase--get-edebug-spec (head)
+(defun pcase--edebug-match-pat-args (head pf)
+  ;; (cl-assert (null (cdr head)))
+  (setq head (car head))
   (or (alist-get head '((quote sexp)
                         (or    &rest pcase-PAT)
                         (and   &rest pcase-PAT)
@@ -82,7 +83,7 @@
                         (pred  &or ("not" pcase-FUN) pcase-FUN)
                         (app   pcase-FUN pcase-PAT)))
       (let ((me (pcase--get-macroexpander head)))
-        (and me (symbolp me) (edebug-get-spec me)))))
+        (funcall pf (and me (symbolp me) (edebug-get-spec me))))))
 
 (defun pcase--get-macroexpander (s)
   "Return the macroexpander for pcase pattern head S, or nil"
@@ -925,13 +926,13 @@ Otherwise, it defers to REST which is a list of branches of the form
        (t (error "Unknown pattern `%S'" upat)))))
    (t (error "Incorrect MATCH %S" (car matches)))))
 
-(def-edebug-spec pcase-QPAT
+(def-edebug-elem-spec 'pcase-QPAT
   ;; Cf. edebug spec for `backquote-form' in edebug.el.
-  (&or ("," pcase-PAT)
-       (pcase-QPAT [&rest [&not ","] pcase-QPAT]
-		   . [&or nil pcase-QPAT])
-       (vector &rest pcase-QPAT)
-       sexp))
+  '(&or ("," pcase-PAT)
+        (pcase-QPAT [&rest [&not ","] pcase-QPAT]
+		    . [&or nil pcase-QPAT])
+	(vector &rest pcase-QPAT)
+	sexp))
 
 (pcase-defmacro \` (qpat)
   "Backquote-style pcase patterns: \\=`QPAT
